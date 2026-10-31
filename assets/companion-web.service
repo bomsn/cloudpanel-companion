@@ -1,0 +1,36 @@
+[Unit]
+Description=CloudPanel Companion operator interface
+After=network.target companion-security-cache.service
+Requires=companion-security-cache.service
+
+[Service]
+User=companion-web
+Group=companion-web
+WorkingDirectory=/opt/cloudpanel-companion
+Environment=COMPANION_WEB_CONFIG=/run/credentials/companion-web.service/web.json
+Environment=DJANGO_SETTINGS_MODULE=companion_web.settings
+LoadCredential=web.json:/etc/cloudpanel-companion/web.json
+StateDirectory=cloudpanel-companion-web
+StateDirectoryMode=0700
+RuntimeDirectory=cloudpanel-companion-web
+RuntimeDirectoryMode=0700
+ExecStart=/opt/cloudpanel-companion-venv/bin/gunicorn --workers 2 --timeout 30 --bind unix:/run/cloudpanel-companion-web/app.sock --umask 0077 companion_web.wsgi:application
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX
+LockPersonality=yes
+CapabilityBoundingSet=
+MemoryMax=384M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

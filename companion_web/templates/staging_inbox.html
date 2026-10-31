@@ -1,0 +1,11 @@
+{% extends 'allauth/layouts/base.html' %}
+{% block head_title %}Test inbox{% endblock %}
+{% block content %}
+<div class="page-heading"><div><h1>Staging</h1><p>Test messages captured here, with no delivery to recipients.</p></div><a class="button secondary" href="{% url 'staging_external' %}">{% include 'icon.html' with name='settings' %}Capture settings</a></div>
+{% include 'staging_nav.html' %}
+{% if error %}<p class="notice warning" role="alert">{% include 'icon.html' with name='circle-alert' %}<span>{{ error }}</span></p>{% endif %}
+{% if inbox %}<div class="mail-layout"><section class="panel flush"><div class="panel-intro"><div class="section-heading"><h2>Test inbox</h2><span class="badge">{{ inbox|length }} message{{ inbox|length|pluralize }}</span></div></div><ul class="mail-list">{% for message in inbox %}<li><a href="?message={{ message.id|urlencode }}#message-content"><strong>{{ message.subject|default:'No subject' }}</strong><small>{{ message.recipients|join:', ' }}</small></a></li>{% endfor %}</ul></section>
+{% if selected %}<section id="message-content"><div class="feature-heading">{% include 'icon.html' with name='mail' %}<h2>{{ selected.subject|default:'No subject' }}</h2></div><p class="muted">To {{ selected.recipients|join:', ' }}</p><pre class="mail-body">{{ selected.body }}</pre><p class="footnote">Shown as plain text. Any HTML is displayed as source.</p></section>{% else %}<section class="empty-state">{% include 'icon.html' with name='mail' %}<h2>Select a message</h2><p>Open a captured message to read its contents.</p></section>{% endif %}</div>
+{% else %}<section class="empty-state">{% include 'icon.html' with name='inbox' %}<h2>No test messages yet</h2><p>Enable email capture for a test address, then trigger an email from staging. It appears here instead of being sent.</p><a class="button secondary" href="{% url 'staging_external' %}">Set up email capture{% include 'icon.html' with name='chevron-right' %}</a></section>{% endif %}
+<p class="footnote">Up to 50 messages are kept within an 8 MB limit. Older messages are removed automatically.</p>
+{% endblock %}

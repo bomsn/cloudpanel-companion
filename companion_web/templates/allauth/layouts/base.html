@@ -1,0 +1,34 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block head_title %}Companion{% endblock %} | CloudPanel Companion</title>
+  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="{% static 'workspace.css' %}">
+  <script src="{% static 'workspace.js' %}" defer></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="{% if user.is_authenticated %}signed-in{% else %}signed-out{% endif %}">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar"><a class="brand" href="/">{% include 'icon.html' with name='layers' %}<span>Companion<small>CloudPanel operations</small></span></a>
+    {% if user.is_authenticated %}<nav class="primary-nav" aria-label="Operations">
+      <a href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>{% include 'icon.html' with name='layout-dashboard' %}<span>Overview</span></a>
+      <a href="{% url 'monitoring' %}" {% if request.path == '/monitoring/' %}aria-current="page"{% endif %}>{% include 'icon.html' with name='activity' %}<span>Monitoring</span></a>
+      <a href="{% url 'staging' %}" {% if request.path == '/staging/' or request.path == '/staging/external/' or request.path == '/staging/inbox/' %}aria-current="page"{% endif %}>{% include 'icon.html' with name='layers' %}<span>Staging</span></a>
+      <a href="{% url 'releases' %}" {% if request.path|slice:':18' == '/staging/releases/' %}aria-current="page"{% endif %}>{% include 'icon.html' with name='upload' %}<span>Releases</span></a>
+    </nav><details class="account-nav"><summary aria-label="Your account">{% include 'icon.html' with name='shield-check' %}<span>Your account</span>{% include 'icon.html' with name='chevron-down' %}</summary>
+      <nav aria-label="Account">
+        <a href="{% url 'mfa_index' %}">{% include 'icon.html' with name='key-round' %}Security &amp; sign-in</a>
+        <a href="{% url 'usersessions_list' %}">{% include 'icon.html' with name='refresh-cw' %}Sessions</a>
+        <a href="{% url 'account_logout' %}">{% include 'icon.html' with name='log-out' %}Sign out</a>
+      </nav>
+    </details>{% endif %}
+  </header>
+  <main class="account-shell{% if request.path|slice:':10' == '/accounts/' %} account-screen{% endif %}" id="main" tabindex="-1">
+    {% if messages %}<div class="messages" role="status">{% for message in messages %}<p class="notice {% if message.tags == 'error' %}warning{% endif %}">{% include 'icon.html' with name='circle-alert' %}<span>{{ message }}</span></p>{% endfor %}</div>{% endif %}
+    {% block body %}{% block content %}{% endblock %}{% endblock %}
+  </main>
+  {% block extra_body %}{% endblock %}
+</body>
+</html>

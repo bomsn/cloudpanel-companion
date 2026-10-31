@@ -1,0 +1,10 @@
+[Unit]
+Description=Collect Companion history once a minute
+
+[Timer]
+OnCalendar=*-*-* *:*:15
+RandomizedDelaySec=2
+Persistent=false
+
+[Install]
+WantedBy=timers.target

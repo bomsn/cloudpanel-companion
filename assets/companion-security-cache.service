@@ -1,0 +1,30 @@
+[Unit]
+Description=Private Companion authentication cache
+Before=companion-web.service
+
+[Service]
+Type=notify
+User=companion-cache
+Group=companion-web
+RuntimeDirectory=cloudpanel-companion-security
+RuntimeDirectoryMode=0750
+StateDirectory=cloudpanel-companion-security
+StateDirectoryMode=0700
+ExecStart=/usr/bin/redis-server /etc/cloudpanel-companion/security-cache.conf --supervised systemd
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target

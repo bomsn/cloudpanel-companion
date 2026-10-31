@@ -1,0 +1,23 @@
+[Unit]
+Description=Companion private server and request history
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/cloudpanel-companion
+ExecStart=/usr/bin/python3 -m companion.telemetry
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/cloudpanel-companion-telemetry /var/lib/cloudpanel-companion-telemetry-observations
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+TimeoutStartSec=45
+MemoryMax=192M
+CPUQuota=20%
+IOWeight=10
+TasksMax=24

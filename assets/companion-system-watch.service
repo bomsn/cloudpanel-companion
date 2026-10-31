@@ -1,0 +1,23 @@
+[Unit]
+Description=Companion service health and bounded recovery
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/cloudpanel-companion
+StateDirectory=cloudpanel-companion-system
+StateDirectoryMode=0700
+ExecStart=/usr/bin/python3 -m companion.system_watch --config /etc/cloudpanel-companion/system-watch.json --state /var/lib/cloudpanel-companion-system --output /var/lib/cloudpanel-companion-system-observations/latest.json
+TimeoutStartSec=3min
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+MemoryMax=128M
+TasksMax=32
+
+[Install]
+WantedBy=multi-user.target

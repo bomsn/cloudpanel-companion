@@ -1,0 +1,50 @@
+{% extends 'allauth/layouts/base.html' %}
+{% block head_title %}External tests{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><h1>Staging</h1><p>Keep test activity separate from the real business.</p></div>
+</div>
+{% include 'staging_nav.html' %}
+{% if error %}<p class="notice warning" role="alert">{% include 'icon.html' with name='circle-alert' %}<span>{{ error }}</span></p>{% endif %}
+{% if staging %}
+  {% if staging.external_error or not staging.relay_configured %}
+    <p class="notice warning">External tests are blocked. The server transport or saved policy needs attention.</p>
+  {% else %}
+  <div class="test-policy-summary">
+    <div class="status-strip {% if unsaved %}attention{% endif %}">
+      {% include 'icon.html' with name='shield-check' %}
+      <div><strong>{% if unsaved %}Changes have not been saved{% elif any_enabled %}Only approved tests are allowed{% else %}All external test activity is blocked{% endif %}</strong>
+      <p>Everything is off by default. Switch on an option, add approved destinations, then save. Unlisted destinations stay blocked.</p></div>
+    </div>
+    {% if any_enabled %}<form method="post" action="{% url 'staging_external_change' %}">{% csrf_token %}<input type="hidden" name="operation" value="external_stop"><button class="subtle" type="submit">{% include 'icon.html' with name='pause' %}Turn all tests off</button></form>{% endif %}
+  </div>
+  {% if not access_unlocked %}
+  <div class="notice">{% include 'icon.html' with name='lock-keyhole' %}<div><strong>Settings are locked</strong><p><a href="/accounts/reauthenticate/?next=/staging/external/">Unlock changes</a> to enable approved tests.</p></div></div>
+  {% endif %}
+  <form class="settings-form" method="post" action="{% url 'staging_external_change' %}" data-track-settings>
+    {% csrf_token %}
+    <fieldset {% if not access_unlocked %}disabled{% endif %}>
+      <legend class="visually-hidden">External test settings</legend>
+      {% for control in controls %}
+      <section class="setting-card {% if unsaved %}unsaved{% endif %}">
+        <div class="setting-summary">
+          <div class="feature-heading">{% include 'icon.html' with name=control.icon %}<h2 id="{{ control.id }}-title">{{ control.title }}</h2><span data-setting-status class="badge {% if unsaved %}warning{% elif control.enabled %}blue{% endif %}">{% if unsaved %}Unsaved{% elif control.enabled %}On{% else %}Off{% endif %}</span></div>
+          <label class="switch-row" for="{{ control.id }}"><span class="visually-hidden">Enable {{ control.title|lower }}</span><input id="{{ control.id }}" type="checkbox" role="switch" name="{{ control.flag }}" value="yes" data-controls-fields data-on-description="{{ control.on }}" data-off-description="{{ control.off }}" aria-describedby="{{ control.id }}-description" {% if control.enabled %}checked{% endif %}></label>
+        </div>
+        <p class="control-description" id="{{ control.id }}-description">{% if control.enabled %}{{ control.on }}{% else %}{{ control.off }}{% endif %}</p>
+        <fieldset class="dependent-fields" data-visible-for="{{ control.id }}" {% if not control.enabled %}hidden disabled{% endif %}>
+          <legend class="visually-hidden">{{ control.title }} destinations</legend>
+          <label for="{{ control.field_id }}">{{ control.label }}</label>
+          <textarea id="{{ control.field_id }}" name="{{ control.field }}" rows="3" maxlength="{{ control.limit }}" spellcheck="false" placeholder="{{ control.example }}" aria-describedby="{{ control.id }}-help">{{ control.value }}</textarea>
+          <p class="field-help" id="{{ control.id }}-help">{{ control.help }}</p>
+          {% if control.flag == 'mail_enabled' %}<a class="text-action" href="{% url 'staging_inbox' %}">Open captured emails</a>{% endif %}
+        </fieldset>
+      </section>
+      {% endfor %}
+      <div class="settings-save-bar"><span class="muted" role="status" data-settings-feedback>{% if unsaved %}Review your changes before saving.{% else %}No unsaved changes{% endif %}</span><button data-save-settings type="submit" {% if not unsaved %}disabled{% endif %}>Save changes</button></div>
+    </fieldset>
+  </form>
+  <p class="footnote">Approved requests are limited to 30 per minute. Private networks and live website domains are blocked.</p>
+  {% endif %}
+{% endif %}
+{% endblock %}

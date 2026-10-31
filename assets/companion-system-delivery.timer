@@ -1,0 +1,10 @@
+[Unit]
+Description=Deliver queued system service incidents
+
+[Timer]
+OnBootSec=90
+OnUnitActiveSec=60
+AccuracySec=5
+
+[Install]
+WantedBy=timers.target

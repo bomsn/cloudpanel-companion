@@ -1,0 +1,29 @@
+[Unit]
+Description=Deliver queued Companion incidents
+After=network-online.target companion-monitor.service
+ConditionPathExists=/etc/cloudpanel-companion/slack.json
+
+[Service]
+Type=oneshot
+User=companion-monitor
+Group=companion-monitor
+WorkingDirectory=/opt/cloudpanel-companion
+LoadCredential=slack.json:/etc/cloudpanel-companion/slack.json
+StateDirectory=cloudpanel-companion-monitor
+StateDirectoryMode=0700
+ExecStart=/usr/bin/python3 -m companion.delivery --config %d/slack.json --state-dir /var/lib/cloudpanel-companion-monitor
+TimeoutStartSec=3min
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+MemoryMax=128M
+CPUQuota=25%
+

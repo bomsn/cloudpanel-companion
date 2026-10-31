@@ -1,0 +1,33 @@
+[Unit]
+Description=CloudPanel Companion registered staging operations
+After=nginx.service
+
+[Service]
+Type=simple
+User=root
+Group=companion-web
+WorkingDirectory=/opt/cloudpanel-companion
+RuntimeDirectory=cloudpanel-companion-operations
+RuntimeDirectoryMode=0750
+StateDirectory=cloudpanel-companion-operations
+StateDirectoryMode=0700
+ExecStart=/usr/bin/python3 -m companion.operations --registry /etc/cloudpanel-companion/operations.json --socket /run/cloudpanel-companion-operations/control.sock
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+AmbientCapabilities=CAP_SETUID CAP_SETGID
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_CHOWN
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryMax=1G
+CPUQuota=100%
+IOWeight=50
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

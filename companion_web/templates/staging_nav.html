@@ -1,0 +1,5 @@
+<nav class="staging-nav" aria-label="Staging pages">
+<a href="{% url 'staging' %}" {% if request.path == '/staging/' %}aria-current="page"{% endif %}>{% include 'icon.html' with name='layers' %}Copy &amp; access</a>
+<a href="{% url 'staging_external' %}" {% if request.path == '/staging/external/' %}aria-current="page"{% endif %}>{% include 'icon.html' with name='globe' %}External tests</a>
+<a href="{% url 'staging_inbox' %}" {% if request.path == '/staging/inbox/' %}aria-current="page"{% endif %}>{% include 'icon.html' with name='inbox' %}Test inbox</a>
+</nav>

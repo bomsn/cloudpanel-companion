@@ -1,0 +1,15 @@
+{% extends "account/base_entrance.html" %}
+{% block head_title %}Sign in{% endblock %}
+{% block content %}
+<h1>Sign in</h1>
+<p>Use your Companion operator account. CloudPanel and WordPress accounts are separate.</p>
+<form method="post" action="{% url 'account_login' %}">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <p>{{ form.login.label_tag }}{{ form.login }}{{ form.login.errors }}</p>
+  <p>{{ form.password.label_tag }}{{ form.password }}{{ form.password.errors }}</p>
+  {{ redirect_field }}
+  <button class="login-submit" type="submit">Sign in</button>
+</form>
+<p class="footnote">Contact the server operator if you need an account or password recovery.</p>
+{% endblock %}
