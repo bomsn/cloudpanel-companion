@@ -1,0 +1,26 @@
+{% extends "mfa/recovery_codes/base.html" %}
+{% load static %}
+{% block head_title %}Recovery codes{% endblock %}
+{% block account_body %}
+<section class="card" aria-labelledby="codes-title">
+  <div class="card-header"><h2 id="codes-title">Recovery codes</h2><span class="pill">{{ unused_codes|length }} of {{ total_count }} unused</span></div>
+  <div class="card-body">
+    {% if can_view_codes %}
+    <p>Save these codes now, for example in your password manager. Each one signs you in once if you lose your authenticator app. They are not shown again.</p>
+    <ol class="recovery-codes" id="recovery_codes" aria-label="Unused recovery codes">{% for code in unused_codes %}<li>{{ code }}</li>{% endfor %}</ol>
+    <label class="check" for="codes_saved"><input type="checkbox" id="codes_saved"><span>I have saved my recovery codes</span></label>
+    <div class="form-actions"><a class="btn btn-primary" href="{% url 'mfa_index' %}">Done</a></div>
+    {% else %}
+    <p>Recovery codes are shown only once, when they are generated. If you have lost yours, generate a new set. The old codes then stop working.</p>
+    <div class="form-actions"><a class="btn btn-secondary" href="{% url 'mfa_generate_recovery_codes' %}">Generate new codes</a><a class="btn btn-link" href="{% url 'mfa_index' %}">Back to two-factor authentication</a></div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+{% block extra_body %}
+{% if can_view_codes %}
+<script src="{% static 'mfa/js/recovery_codes.js' %}"></script>
+<script src="{% static 'account/js/onload.js' %}"></script>
+<script data-allauth-onload="allauth.recoveryCodes.forms.viewForm" type="application/json">{"ids": {"saveConfirmation": "codes_saved"}}</script>
+{% endif %}
+{% endblock %}

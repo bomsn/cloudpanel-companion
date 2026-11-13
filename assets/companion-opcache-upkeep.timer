@@ -1,0 +1,12 @@
+[Unit]
+Description=Check OPcache every night and reload PHP-FPM gracefully when it needs it
+
+[Timer]
+# Server time. Setup moves it with a drop-in when another time is chosen.
+OnCalendar=*-*-* 04:30:00
+AccuracySec=1min
+# A missed night is skipped, never caught up at a busy hour.
+Persistent=false
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,77 @@
+{% extends 'layout.html' %}
+{% block head_title %}Staging{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Staging</h1><p class="page-subtitle">Your private testing copy of the website</p></div>
+  {% if staging %}<div class="page-actions"><a class="btn btn-secondary" href="https://{{ staging.host }}" target="_blank" rel="noopener noreferrer">Open staging{% include 'icon.html' with name='external-link' %}</a></div>{% endif %}
+</div>
+{% include 'staging_nav.html' %}
+{% if error %}<div class="alert alert-warning" role="alert">{% include 'icon.html' with name='triangle-alert' %}<div class="alert-content">{{ error }}</div></div>{% endif %}
+{% if staging %}
+{% if steps %}
+<section class="card" aria-labelledby="job-title" data-job-watch="{% url 'staging_job_status' %}">
+  <div class="card-header"><div class="job-heading">{% include 'icon.html' with name='refresh-cw' class='spin' %}<div><h2 id="job-title" data-job-label role="status">{{ job_label }}</h2><p>Controls stay locked until the refresh finishes. The result appears here automatically.</p></div></div></div>
+  <div class="card-body"><ol class="steps" aria-label="Refresh progress">{% for step in steps %}<li data-step data-state="{{ step.state }}"{% if step.state == 'current' %} aria-current="step"{% endif %}><span class="step-marker">{% include 'icon.html' with name='check' %}</span><span>{{ step.label }}</span></li>{% endfor %}</ol>
+  <noscript><p><a href="{% url 'staging' %}">Refresh to see the latest step</a></p></noscript></div>
+</section>
+{% elif job.running or job.failed or job.blocked %}
+<div class="alert {% if job.failed or job.blocked %}alert-warning{% else %}alert-info{% endif %}" role="status" {% if job.running %}data-job-watch="{% url 'staging_job_status' %}"{% endif %}>{% if job.running %}{% include 'icon.html' with name='refresh-cw' class='spin' %}{% else %}{% include 'icon.html' with name='triangle-alert' %}{% endif %}<div class="alert-content"><strong data-job-label>{{ job_label }}</strong>{% if job.running %}<p>Controls stay locked until this finishes. The result appears here automatically.</p><noscript><p><a href="{% url 'staging' %}">Refresh workflow status</a></p></noscript>{% endif %}</div></div>
+{% endif %}
+
+<section class="card" aria-labelledby="copy-title">
+  <div class="card-header">
+    <h2 id="copy-title">Testing copy</h2>
+    <div class="card-header-actions">
+      {% if staging.paused %}{% include 'status.html' with tone='warning' icon='pause' label='Paused' only %}{% else %}{% include 'status.html' with tone='success' label='Running' only %}{% endif %}
+      <form method="post" action="{% url 'staging_change' %}">{% csrf_token %}<input type="hidden" name="operation" value="pause"><input type="hidden" name="enabled" value="{% if staging.paused %}false{% else %}true{% endif %}"><button class="btn btn-secondary btn-sm" type="submit" {% if job.running or job.blocked %}disabled{% endif %}>{% if staging.paused %}{% include 'icon.html' with name='play' %}Resume staging{% else %}{% include 'icon.html' with name='pause' %}Pause staging{% endif %}</button></form>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="route"><div>{% include 'icon.html' with name='globe' %}<span><small>Copied from website</small><strong>{{ staging.source_host }}</strong></span></div>{% include 'icon.html' with name='arrow-right' %}<div>{% include 'icon.html' with name='layers' %}<span><small>Staging address</small><strong>{{ staging.host }}</strong></span></div></div>
+  </div>
+  <div class="card-footer"><p>{% if staging.paused %}While paused, staging is closed to every visitor. {% endif %}Every refresh reuses the same staging address.</p></div>
+</section>
+
+{# Both settings cards share one unlock, so it is offered once above their masks. #}
+{% if locked %}<div class="lock-notice"><p>Changing access, the password or the copy needs a fresh access check.</p>{% include 'unlock.html' with purpose='staging access, its password or the copy' %}</div>{% endif %}
+<fieldset {% if job.running or job.blocked %}disabled{% endif %}><legend class="visually-hidden">Staging settings</legend>
+<div class="grid grid-2">
+  <section class="card" aria-labelledby="access-title">
+    <div class="card-header"><h2 id="access-title">Visitor access</h2><span id="access-badge" class="pill {% if staging.protected %}pill-success{% else %}pill-warning{% endif %}" data-access="{% if staging.protected %}protected{% else %}public{% endif %}">{% include 'icon.html' with name='lock' class='access-protected' %}{% include 'icon.html' with name='globe' class='access-public' %}{% include 'icon.html' with name='triangle-alert' class='access-unknown' %}<span data-access-text>{% if staging.protected %}Password required{% else %}Public{% endif %}</span></span></div>
+    {# Turning protection on needs no confirmation, so a public copy's switch stays usable. #}
+    <div class="card-body lockable{% if locked and staging.protected %} is-locked{% endif %}">
+      <div class="lockable-content" {% if locked and staging.protected %}inert{% endif %}>
+      <form method="post" action="{% url 'staging_change' %}" data-access-switch>{% csrf_token %}<input type="hidden" name="operation" value="protection">
+        <label class="switch" for="password-protection"><span>Require a password</span><input id="password-protection" type="checkbox" role="switch" name="enabled" value="true" {% if staging.protected %}checked{% endif %} aria-describedby="access-description"></label>
+        <p id="access-description" class="control-description">{% if staging.protected %}Only people with the staging password can open this copy.{% else %}Anyone with the staging URL can view this copy.{% endif %}</p>
+        <p class="control-feedback" role="status" data-access-feedback></p>
+        <noscript><button class="btn btn-secondary" type="submit">Save access setting</button></noscript>
+      </form>
+      <div class="dependent-fields" data-visible-for="password-protection" {% if not staging.protected %}hidden{% endif %}>
+        <form method="post" action="{% url 'staging_change' %}">{% csrf_token %}<input type="hidden" name="operation" value="password">
+          <div class="field"><label for="staging-password">New staging password</label><input id="staging-password" name="password" type="password" required minlength="14" maxlength="72" autocomplete="new-password" aria-describedby="password-help"><p class="field-help" id="password-help">Use at least 14 characters.</p></div>
+          <button class="btn btn-secondary" type="submit">Update password</button></form>
+      </div>
+      </div>
+    </div>
+    <div class="card-footer"><p>{% if staging.protected %}Visitors sign in with the username staging. {% endif %}Visitor access does not change the external test settings.</p></div>
+  </section>
+
+  <section class="card" aria-labelledby="refresh-title">
+    <div class="card-header"><h2 id="refresh-title">Refresh staging</h2></div>
+    <div class="card-body">
+      <p>Replace staging with a fresh copy of the website, including its database. Test changes made in staging are replaced.</p>
+      {% if job.running %}<p class="empty-inline">{% include 'icon.html' with name='clock' %}Available when the current workflow finishes.</p>{% else %}
+      <div class="lockable{% if locked %} is-locked{% endif %}">
+        <form class="lockable-content" method="post" action="{% url 'staging_change' %}" data-submit-label="Starting refresh…" {% if locked %}inert{% endif %}>{% csrf_token %}<input type="hidden" name="operation" value="refresh">
+          <label class="check"><input type="checkbox" name="confirm_refresh" value="yes" required><span>Replace the current staging copy and its test changes.</span></label>
+          <button class="btn btn-primary" type="submit">{% include 'icon.html' with name='refresh-cw' %}Refresh staging</button></form>
+      </div>
+      {% endif %}
+    </div>
+    <div class="card-footer"><p>The current copy is kept for recovery. The website is never overwritten.</p></div>
+  </section>
+</div>
+</fieldset>
+{% endif %}
+{% endblock %}

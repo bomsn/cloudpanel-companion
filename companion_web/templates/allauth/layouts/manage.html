@@ -1,0 +1,8 @@
+{% extends "allauth/layouts/base.html" %}
+{# Account screens share CloudPanel's Account layout: page title, tabs, then the screen's card. #}
+{% block main %}
+<div class="page-header"><div><h1>Account</h1><p class="page-subtitle">Signed in as {{ user.get_username }}</p></div></div>
+<nav class="tabs" aria-label="Account">{% include 'account_links.html' %}</nav>
+{% include 'messages.html' %}
+{% block account_body %}<section class="card"><div class="card-body">{% block content %}{% endblock %}</div></section>{% endblock %}
+{% endblock %}

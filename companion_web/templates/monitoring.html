@@ -1,0 +1,177 @@
+{% extends 'layout.html' %}
+{% load humanize %}
+{% block head_title %}Monitoring{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Monitoring</h1><p class="page-subtitle" id="history-updated">{% if history %}Updated {{ observed_at|date:'H:i:s' }} UTC{% else %}Waiting for the first update{% endif %}</p></div>
+  <div class="page-actions">
+    <nav class="segmented" aria-label="History period">{% for key, option in windows.items %}<a href="?window={{ key }}" {% if selected_window == key %}aria-current="true"{% endif %}>{{ option.label }}</a>{% endfor %}</nav>
+    <a class="btn btn-secondary" href="?window={{ selected_window }}">{% include 'icon.html' with name='refresh-cw' %}Refresh</a>
+  </div>
+</div>
+<p class="toolbar-note" id="history-refresh-status" role="status">Updates every minute while this page is open.</p>
+<div id="monitor-history" data-history-refresh>
+{% if not history %}
+<section class="card">{% include 'empty.html' with icon='activity' level='h2' title='No monitoring history yet' text='Performance history has not been recorded yet, so server health cannot be confirmed here.' only %}</section>
+{% else %}
+{% if stale %}<div class="alert alert-warning" role="alert">{% include 'icon.html' with name='triangle-alert' %}<div class="alert-content"><strong>Performance history has stopped updating.</strong><p>These figures are from the past, not current health.</p></div></div>{% endif %}
+{% if findings %}<div class="alert alert-warning" role="status">{% include 'icon.html' with name='triangle-alert' %}<div class="alert-content"><strong>Needs a closer look</strong><ul>{% for finding in findings %}<li>{{ finding }}</li>{% endfor %}</ul></div></div>{% endif %}
+
+<dl class="stats" aria-label="Website traffic in this period">
+  <div class="stat"><dt>Website requests</dt><dd><span class="stat-value">{{ request_count|intcomma }}</span>{% if request_trend %}<span class="stat-trend">{% include 'sparkline.html' with trend=request_trend only %}<span class="visually-hidden">Per {{ interval }} interval: between {{ request_trend.low|floatformat:0 }} and {{ request_trend.high|floatformat:0 }}.</span></span>{% endif %}<small>Pages, not static files</small></dd></div>
+  <div class="stat"><dt>Server errors</dt><dd><span class="stat-value{% if error_count %} text-danger{% endif %}">{{ error_count|intcomma }}</span>{% if error_trend and error_count %}<span class="stat-trend stat-trend-danger">{% include 'sparkline.html' with trend=error_trend only %}<span class="visually-hidden">Per {{ interval }} interval: up to {{ error_trend.high|floatformat:0 }}.</span></span>{% endif %}<small>HTTP 5xx responses</small></dd></div>
+  <div class="stat"><dt>Served from page cache</dt><dd>{% if cache_percent != None %}<span class="stat-value">{{ cache_percent|floatformat:0 }}%</span><small>Of cacheable public pages</small>{% include 'meter.html' with width=cache_percent only %}{% else %}<span class="stat-value">No data</span><small>No cacheable public pages yet</small>{% endif %}</dd></div>
+  <div class="stat"><dt>Samples collected</dt><dd><span class="stat-value">{{ window.sample_count|intcomma }}</span>{% if started_at %}<small>Since {{ started_at|date:'j M H:i' }} UTC</small>{% endif %}</dd></div>
+</dl>
+
+<div class="grid grid-2">{% for chart in charts %}
+  <section class="card" aria-labelledby="chart-{{ forloop.counter }}-title">
+    <div class="card-header chart-header"><div><h2 id="chart-{{ forloop.counter }}-title">{{ chart.title }}</h2><p>{{ chart.description }}</p></div>{% if chart.points %}<span class="chart-value">{{ chart.latest|floatformat:"-1" }}<small>{{ chart.unit }}</small></span>{% endif %}</div>
+    <div class="card-body">
+      {% if chart.points %}<svg class="history-chart" viewBox="0 0 620 170" role="img" aria-label="{{ chart.title }} history. Latest {{ chart.latest|floatformat:"-1" }}{{ chart.suffix }}, average {{ chart.average|floatformat:"-1" }}{{ chart.suffix }}, peak {{ chart.peak|floatformat:"-1" }}{{ chart.suffix }} at {{ chart.peak_at|date:'j M H:i' }} UTC. {{ chart.points }} measured intervals. Gaps are not interpolated."><path d="M42 15H592 M42 77H592 M42 140H592" class="chart-gridlines"/><text x="0" y="20">{{ chart.maximum }}</text><text x="20" y="144">0</text>{% for area in chart.areas %}<polygon points="{{ area }}" class="chart-area"/>{% endfor %}{% for segment in chart.segments %}<polyline points="{{ segment }}" class="chart-line"/>{% endfor %}<circle cx="{{ chart.last_x }}" cy="{{ chart.last_y }}" r="3" class="chart-marker"/></svg>
+      <div class="chart-time"><span>{{ chart.start|date:'j M H:i' }} UTC</span><span>{{ chart.end|date:'j M H:i' }} UTC</span></div>
+      {% else %}<div class="chart-empty">{% include 'icon.html' with name='clock' %}{{ chart.empty }}</div>{% endif %}
+    </div>
+    {% if chart.points %}<dl class="card-footer chart-summary"><div><dt>Average</dt><dd>{{ chart.average|floatformat:"-1" }}{{ chart.suffix }}</dd></div><div><dt>Peak</dt><dd>{{ chart.peak|floatformat:"-1" }}{{ chart.suffix }}<small>at {{ chart.peak_at|date:'j M H:i' }} UTC</small></dd></div></dl>{% endif %}
+  </section>{% endfor %}
+</div>
+
+<section class="card" aria-labelledby="routes-title">
+  <div class="card-header"><div><h2 id="routes-title">Response by page type</h2><p>How quickly the server starts answering each kind of page</p></div></div>
+  <div class="table-wrap"><table class="table responsive">
+    <thead><tr><th>Page type</th><th class="numeric">Requests</th><th>Served from cache</th><th class="numeric">Typical response</th><th class="numeric">Slowest 5%</th><th class="numeric">Errors</th></tr></thead>
+    <tbody>{% for route in routes %}<tr>
+      <td>{{ route.label }}</td>
+      <td data-label="Requests" class="numeric">{{ route.count|intcomma }}</td>
+      <td data-label="Served from cache"><span class="share">{% include 'meter.html' with width=route.cache_share only %}{{ route.cache_share }}%</span></td>
+      <td data-label="Typical response" class="numeric">{% if route.typical_ms != None %}{{ route.typical_ms|floatformat:0|intcomma }} ms{% else %}<span class="text-muted">{% if route.hits == route.count %}All cached{% else %}Not timed{% endif %}</span>{% endif %}</td>
+      <td data-label="Slowest 5%" class="numeric">{% if route.slowest_ms != None %}{{ route.slowest_ms|floatformat:0|intcomma }} ms{% else %}<span class="text-muted">{% if route.hits == route.count %}All cached{% else %}Not timed{% endif %}</span>{% endif %}</td>
+      <td data-label="Errors" class="numeric">{% if route.errors %}<span class="text-danger">{{ route.errors|intcomma }}</span>{% else %}0{% endif %}</td>
+    </tr>{% empty %}<tr><td colspan="6" class="table-empty">{% include 'icon.html' with name='clock' %}No website requests collected in this period yet.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="card-footer"><p>Typical response (the median) and the slowest 5% count only requests the page cache did not answer, to within 10%. Errors are server errors (HTTP 5xx).</p></div>
+</section>
+
+<section class="card" aria-labelledby="errors-title">
+  <div class="card-header"><div><h2 id="errors-title">Recurring server errors</h2><p>New error-log lines, grouped without customer details</p></div></div>
+  <div class="card-body">{% if window.errors %}<ul class="ranked-list">{% for label,count in window.errors %}<li><span>{{ label }}</span><strong>{{ count|intcomma }}</strong></li>{% endfor %}</ul>{% else %}<p class="empty-inline">{% include 'icon.html' with name='circle-check' %}No recognised errors in this period.</p>{% endif %}</div>
+  <div class="card-footer"><p>Counts are log entries, not unique incidents.{% if latest.unavailable_logs %} Unavailable sources: {{ latest.unavailable_logs|join:', ' }}.{% endif %}</p></div>
+</section>
+
+<section class="card" aria-labelledby="php-title">
+  <div class="card-header"><div><h2 id="php-title">PHP and database</h2><p>Latest sample{% if stale %}, stale{% endif %}</p></div></div>
+  <dl class="metric-grid">
+    <div><dt>PHP requests running</dt><dd>{{ latest.php_active|default_if_none:'Unavailable' }}</dd></div>
+    <div><dt>PHP requests queued</dt><dd>{{ latest.php_queue|default_if_none:'Unavailable' }}</dd></div>
+    <div><dt>Worker limit reached</dt><dd>{{ latest.php_limit_hits|default_if_none:'Unavailable' }}<small>Times since the PHP pool started</small></dd></div>
+    <div><dt>OPcache free</dt><dd>{% if latest.opcache_free != None %}{{ latest.opcache_free|filesizeformat }}{% else %}Unavailable{% endif %}<small>{{ latest.opcache_restarts|default_if_none:'Unknown' }} restarts since PHP started</small></dd></div>
+    <div><dt>OPcache wasted</dt><dd>{% if latest.opcache_wasted_percent != None %}{{ latest.opcache_wasted_percent|floatformat:'-1' }}%{% if latest.opcache_full %} {% include 'status.html' with tone='warning' label='Full' only %}{% endif %}<small>{{ latest.opcache_wasted|filesizeformat }} held by replaced scripts</small>{% else %}Unavailable{% endif %}</dd></div>
+    <div><dt>OPcache scripts</dt><dd>{% if latest.opcache_scripts != None %}{{ latest.opcache_scripts|intcomma }}{% else %}Unavailable{% endif %}<small>Compiled PHP files kept in memory</small></dd></div>
+    <div><dt>Nightly OPcache check</dt><dd>{% if upkeep %}{{ upkeep.label }}<small>Checked {{ upkeep.checked|date:'j M, H:i' }} UTC{% if upkeep.opcache_wasted_percent != None %} at {{ upkeep.opcache_wasted_percent|floatformat:'-1' }}% wasted{% endif %}. {% if upkeep.reloaded %}Last reload {{ upkeep.reloaded|date:'j M, H:i' }} UTC.{% else %}No reload needed yet.{% endif %}</small>{% else %}Not run yet<small>Every night, PHP-FPM reloads gracefully when 10% or more is wasted or OPcache is full</small>{% endif %}</dd></div>
+    <div><dt>Database connections</dt><dd>{{ latest.db_connections|default_if_none:'Unavailable' }}<small>{{ latest.db_running|default_if_none:'Unknown' }} active queries at sample time</small></dd></div>
+    <div><dt>Disk wait</dt><dd>{% if latest.iowait != None %}{{ latest.iowait }}%{% else %}Unavailable{% endif %}<small>CPU time spent waiting for the disk</small></dd></div>
+  </dl>
+  {% if latest.unavailable %}<div class="card-body"><div class="alert alert-warning">{% include 'icon.html' with name='triangle-alert' %}<div class="alert-content">{{ latest.unavailable|join:'. ' }}.</div></div></div>{% endif %}
+</section>
+{% endif %}
+
+<div class="grid grid-2 grid-stretch">
+  <section class="card" aria-labelledby="disk-title">
+    <div class="card-header">
+      <div><h2 id="disk-title">Disk space</h2><p>Growth over the last 7 days</p></div>
+      {% if disk %}{% if disk.soon %}{% include 'status.html' with tone='warning' label='Full within a month' only %}{% elif disk.state == 'growing' %}{% include 'status.html' with tone='info' icon='hard-drive' label='Growing' only %}{% elif disk.state == 'slow' %}{% include 'status.html' with label='Growing slowly' only %}{% else %}{% include 'status.html' with tone='success' label='Not growing' only %}{% endif %}{% endif %}
+    </div>
+    <div class="card-body">{% if disk %}
+      {% if disk_history %}<div class="trend-figure">{% include 'sparkline.html' with trend=disk_history only %}<p class="trend-caption"><span>Disk in use, last 7 days</span><span>{{ disk_history.low|floatformat:0 }}% to {{ disk_history.high|floatformat:0 }}%</span></p></div>{% endif %}
+      <dl class="property-list">
+      <div><dt>Free now</dt><dd>{{ disk.free|filesizeformat }}</dd></div>
+      <div><dt>Added since {{ disk.since_at|date:'j M' }}</dt><dd>{% if disk.growth > 0 %}{{ disk.growth|filesizeformat }}{% else %}Nothing{% endif %}</dd></div>
+      <div><dt>Estimated full</dt><dd>{% if disk.state == 'growing' %}Around {{ disk.full|date:'j M Y' }}{% elif disk.state == 'slow' %}More than a year away{% else %}Not growing{% endif %}</dd></div>
+    </dl>{% else %}<p class="empty-inline">{% include 'icon.html' with name='clock' %}An estimate needs a day of history.</p>{% endif %}</div>
+    <div class="card-footer"><p>Estimated from a line through every sample, so one large copy or clean-up moves it only a little.</p></div>
+  </section>
+  <section class="card" aria-labelledby="mail-title">
+    <div class="card-header">
+      <div><h2 id="mail-title">Outgoing mail</h2><p>Postfix queue, checked every minute</p></div>
+      {% if mail %}{% if not mail.available %}{% include 'status.html' with tone='danger' label='Cannot be read' only %}{% elif mail.stuck %}{% include 'status.html' with tone='danger' label='Mail is stuck' only %}{% elif mail.count %}{% include 'status.html' with tone='info' label='Sending' only %}{% else %}{% include 'status.html' with tone='success' label='Queue empty' only %}{% endif %}{% endif %}
+    </div>
+    <div class="card-body">
+      {% if not system %}<p class="empty-inline">{% include 'icon.html' with name='clock' %}Waiting for the first service check.</p>
+      {% elif not mail %}<p class="empty-inline">{% include 'icon.html' with name='mail' %}No Postfix mail server is installed on this server.</p>
+      {% elif not mail.available %}<p>The queue cannot be read, so mail may not be leaving this server. Check Postfix on the server.</p>
+      {% else %}<dl class="property-list">
+        <div><dt>Messages waiting</dt><dd>{{ mail.count|intcomma }}{% if not mail.complete %} or more{% endif %}</dd></div>
+        <div><dt>Oldest waiting</dt><dd>{% if mail.oldest %}{{ mail.oldest|timesince }}<small>Since {{ mail.oldest|date:'j M H:i' }} UTC</small>{% else %}Nothing waiting{% endif %}</dd></div>
+      </dl>{% endif %}
+    </div>
+    {% if mail %}<div class="card-footer"><p>Mail counts as stuck once a message has waited over {{ mail.stuck_hours }} hour{{ mail.stuck_hours|pluralize }}, and alerts like a failed service. Only counts and times are read, never recipients or contents.</p></div>{% endif %}
+  </section>
+</div>
+
+{% if history %}
+<section class="card" aria-labelledby="wordpress-title">
+  <div class="card-header">
+    <div><h2 id="wordpress-title">WordPress</h2><p>{% if wordpress.checked %}Read {{ wordpress.checked|date:'j M H:i' }} UTC, then every hour{% else %}Read every hour{% endif %}</p></div>
+    {% if wordpress.available %}{% if wordpress.blocked or wordpress.cron.overdue %}{% include 'status.html' with tone='warning' label='Needs attention' only %}{% elif wordpress.updates %}{% include 'status.html' with tone='info' icon='package' label=wordpress.updates_label only %}{% else %}{% include 'status.html' with tone='success' label='Up to date' only %}{% endif %}{% endif %}
+  </div>
+  {% if not wordpress %}<div class="card-body"><p class="empty-inline">{% include 'icon.html' with name='clock' %}Waiting for the first hourly reading.</p></div>
+  {% elif not wordpress.available %}<div class="card-body"><div class="alert alert-warning">{% include 'icon.html' with name='triangle-alert' %}<div class="alert-content">WordPress could not be read at {{ wordpress.checked|date:'H:i' }} UTC. The next attempt is within an hour.</div></div></div>
+  {% else %}
+  {% if wordpress.stale %}<div class="card-body"><div class="alert alert-warning">{% include 'icon.html' with name='triangle-alert' %}<div class="alert-content">This reading is more than two hours old.</div></div></div>{% endif %}
+  <dl class="metric-grid">
+    <div><dt>Updates available</dt><dd>{{ wordpress.updates|length }}</dd></div>
+    <div><dt>Updates that cannot install</dt><dd>{% if wordpress.blocked %}<span class="text-warning">{{ wordpress.blocked }}</span>{% else %}0{% endif %}</dd></div>
+    <div><dt>Overdue scheduled tasks</dt><dd>{% if wordpress.cron.overdue %}<span class="text-warning">{{ wordpress.cron.overdue|intcomma }}</span><small>Oldest due {{ wordpress.cron_oldest|date:'j M H:i' }} UTC: {% for hook, count in wordpress.cron.hooks %}{{ hook }}{% if not forloop.last %}, {% endif %}{% endfor %}</small>{% else %}0{% endif %}</dd></div>
+  </dl>
+  {% if wordpress.updates %}
+  <div class="table-wrap" id="wordpress-updates"><table class="table responsive">
+    <thead><tr><th>Update</th><th>Type</th><th>Installed</th><th>Available</th><th>Can install</th></tr></thead>
+    <tbody>{% for item in wordpress.updates %}<tr>
+      <td>{{ item.name }}</td>
+      <td data-label="Type">{{ item.kind }}</td>
+      <td data-label="Installed">{{ item.version|default:'Unknown' }}</td>
+      <td data-label="Available">{{ item.update|default:'Unknown' }}</td>
+      <td data-label="Can install">{% if item.package %}{% include 'status.html' with tone='success' label='Yes' only %}{% else %}{% include 'status.html' with tone='warning' label='Licence or download missing' only %}{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+  <div class="card-footer"><p>From WordPress's own update check{% if wordpress.updates_checked_at %}, last run {{ wordpress.updates_checked_at|date:'j M H:i' }} UTC{% endif %}. The Companion never installs updates. "Licence or download missing" means WordPress knows a newer version but has nothing to install, usually because a premium licence is inactive. A task counts as overdue an hour after it was due.</p></div>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="card" aria-labelledby="services-title">
+  <div class="card-header"><div><h2 id="services-title">Services</h2><p>{% if system %}Checked every minute{% else %}Not checked recently{% endif %}</p></div></div>
+  {% if system %}
+  <div class="table-wrap"><table class="table responsive grouped">
+    <thead><tr><th>Service</th><th>State</th><th>Since</th><th>Automatic restart</th></tr></thead>
+    {% for group in watched.groups %}<tbody id="{{ group.anchor }}">
+      <tr class="group-row"><th colspan="4" scope="rowgroup">{% include 'icon.html' with name=group.icon %}{{ group.title }}{% if group.role %}<small>{{ group.role }}</small>{% endif %}</th></tr>
+      {% for row in group.rows %}<tr>
+        <td><span class="service-name">{% include 'icon.html' with name=row.icon %}<span>{{ row.title }}{% if row.description %}<small>{{ row.description }}</small>{% endif %}</span></span></td>
+        <td data-label="State">{% include 'status.html' with tone=row.tone label=row.label only %}</td>
+        <td data-label="Since">{% if row.since_at %}{{ row.since_at|date:'j M H:i' }} UTC{% else %}<span class="text-muted">Not recorded</span>{% endif %}</td>
+        <td data-label="Automatic restart">{% if row.recovery_enabled %}On{% else %}Off{% endif %}{% if row.attempted_recovery %}<small>Restart attempted in this check</small>{% endif %}</td>
+      </tr>{% endfor %}
+    </tbody>{% empty %}<tbody><tr><td colspan="4" class="table-empty">{% include 'icon.html' with name='server' %}No services are registered for watching.</td></tr></tbody>{% endfor %}
+  </table></div>
+  {% with jobs=watched.jobs %}{% if jobs.rows %}
+  <div class="table-wrap" id="{{ jobs.anchor }}"><table class="table responsive grouped">
+    <thead><tr><th>Scheduled job</th><th>Last run</th><th>Result</th><th>Next run</th></tr></thead>
+    <tbody>
+      <tr class="group-row"><th colspan="4" scope="rowgroup">{% include 'icon.html' with name=jobs.icon %}{{ jobs.title }}</th></tr>
+      {% for job in jobs.rows %}<tr>
+      <td><span class="service-name">{% include 'icon.html' with name=job.icon %}<span>{{ job.title }}<small>{{ job.description }}</small></span></span></td>
+      <td data-label="Last run">{% if job.last_at %}{{ job.last_at|date:'j M H:i' }} UTC{% else %}<span class="text-muted">Never</span>{% endif %}</td>
+      <td data-label="Result">{% include 'status.html' with tone=job.tone label=job.label only %}</td>
+      <td data-label="Next run">{% if job.next_at %}{{ job.next_at|date:'j M H:i' }} UTC{% elif job.running %}After this run{% else %}<span class="text-muted">Not scheduled</span>{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}{% endwith %}
+  <div class="card-footer"><p>With automatic restart on, a failed service is restarted after two checks, at most twice an hour. Services stopped on purpose stay stopped. A failed scheduled job alerts like a failed service; its timer runs it again on schedule.</p></div>
+  {% else %}{% include 'empty.html' with icon='clock' title='Waiting for the first service check' text='Services, scheduled jobs, mail and backups are checked every minute.' only %}{% endif %}
+  {% if service_changes %}<div class="card-footer"><details class="disclosure"><summary>Recent service changes{% include 'icon.html' with name='chevron-down' %}</summary><ul class="event-list disclosure-body">{% for change in service_changes %}<li><time>{{ change.observed_at|date:'j M H:i' }} UTC</time><span class="service-name">{% include 'icon.html' with name=change.icon %}<span>{{ change.title }}: {{ change.before|lower }} to {{ change.after|lower }}</span></span></li>{% endfor %}</ul></details></div>{% endif %}
+</section>
+<p class="footnote">Collected every minute and kept for seven days.{% if interval %} Chart averages and peaks use {{ interval }} intervals.{% endif %} This server cannot detect its own complete outage; use a separate external uptime monitor.</p>
+</div>
+{% endblock %}

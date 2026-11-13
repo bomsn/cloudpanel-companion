@@ -1,0 +1,15 @@
+{% extends "account/base_entrance.html" %}
+{% block head_title %}Sign in{% endblock %}
+{% block content %}
+<h1>Sign in</h1>
+<p>Use your Companion operator account.</p>
+<form method="post" action="{% url 'account_login' %}">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger" role="alert"><div class="alert-content">{{ form.non_field_errors }}</div></div>{% endif %}
+  <div class="field{% if form.login.errors %} has-error{% endif %}"><label class="visually-hidden" for="{{ form.login.id_for_label }}">Username</label>{{ form.login }}{{ form.login.errors }}</div>
+  <div class="field{% if form.password.errors %} has-error{% endif %}"><label class="visually-hidden" for="{{ form.password.id_for_label }}">Password</label>{{ form.password }}{{ form.password.errors }}</div>
+  {{ redirect_field }}
+  <div class="form-actions"><button class="btn btn-primary btn-lg" type="submit">Sign in</button></div>
+</form>
+{% endblock %}
+{% block auth_footer %}<p class="auth-footer">CloudPanel and WordPress accounts are separate. Ask the server operator if you need an account or a password reset.</p>{% endblock %}

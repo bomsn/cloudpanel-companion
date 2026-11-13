@@ -1,0 +1,7 @@
+{% extends "account/base_entrance.html" %}
+{% block head_title %}Registration closed{% endblock %}
+{% block content %}
+<span class="auth-icon">{% include 'icon.html' with name='user' %}</span><h1>Registration closed</h1>
+<p>Operator accounts are created on the server. Ask the server operator if you need one.</p>
+<div class="form-actions"><a class="btn btn-primary" href="{% url 'account_login' %}">Go to sign in</a></div>
+{% endblock %}

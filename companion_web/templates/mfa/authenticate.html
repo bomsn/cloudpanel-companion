@@ -1,0 +1,14 @@
+{% extends "mfa/base_entrance.html" %}
+{% load allauth %}
+{% block head_title %}Sign in{% endblock %}
+{% block content %}
+<h1>Two-factor authentication</h1>
+<p>Enter the six-digit code from your authenticator app, or one of your recovery codes.</p>
+<form method="post" action="{% url 'mfa_authenticate' %}">
+  {% csrf_token %}
+  {% element fields form=form unlabeled=True %}{% endelement %}
+  <div class="form-actions"><button class="btn btn-primary" type="submit">Sign in</button><button class="btn btn-link" type="submit" form="logout-from-stage">Cancel</button></div>
+</form>
+{# Cancelling ends the half-completed sign-in rather than leaving it pending. #}
+<form id="logout-from-stage" method="post" hidden action="{% url 'account_logout' %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'account_login' %}"></form>
+{% endblock %}

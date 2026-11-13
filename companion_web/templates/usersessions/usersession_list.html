@@ -1,0 +1,22 @@
+{% extends "usersessions/base_manage.html" %}
+{% load humanize %}
+{% block head_title %}Sessions{% endblock %}
+{% block account_body %}
+<section class="card" aria-labelledby="sessions-title">
+  <div class="card-header"><div><h2 id="sessions-title">Sessions</h2><p>Browsers signed in to this account</p></div></div>
+  <div class="table-wrap"><table class="table responsive">
+    <thead><tr><th>Browser</th><th>Started</th><th>IP address</th>{% if show_last_seen_at %}<th>Last seen</th>{% endif %}</tr></thead>
+    <tbody>{% for session in sessions %}<tr>
+      <td>{{ session.user_agent|default:'Unknown browser' }}{% if session.is_current %} <span class="pill pill-info">This browser</span>{% endif %}</td>
+      <td data-label="Started" class="nowrap"><time datetime="{{ session.created_at|date:'c' }}" title="{{ session.created_at|date:'j M Y, H:i' }} UTC">{{ session.created_at|naturaltime }}</time></td>
+      <td data-label="IP address" class="nowrap">{{ session.ip }}</td>
+      {% if show_last_seen_at %}<td data-label="Last seen" class="nowrap"><time datetime="{{ session.last_seen_at|date:'c' }}" title="{{ session.last_seen_at|date:'j M Y, H:i' }} UTC">{{ session.last_seen_at|naturaltime }}</time></td>{% endif %}
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="card-footer">
+    {% if session_count > 1 %}<p>Signing out other sessions keeps this browser signed in.</p>
+    <form method="post" action="{% url 'usersessions_list' %}">{% csrf_token %}<button class="btn btn-secondary" type="submit">Sign out other sessions</button></form>
+    {% else %}<p>No other browser is signed in to this account.</p>{% endif %}
+  </div>
+</section>
+{% endblock %}

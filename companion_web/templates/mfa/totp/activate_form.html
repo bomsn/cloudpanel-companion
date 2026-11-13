@@ -1,0 +1,29 @@
+{% extends "mfa/totp/base.html" %}
+{% block head_title %}Enable two-factor authentication{% endblock %}
+{% block account_body %}
+<section class="card" aria-labelledby="activate-title">
+  <div class="card-header"><h2 id="activate-title">Enable two-factor authentication</h2></div>
+  <div class="card-body">
+    <div class="qr-setup">
+      <img src="{{ totp_svg_data_uri }}" alt="QR code for your authenticator app" width="220" height="220">
+      <div>
+        <h3>Connect your authenticator app</h3>
+        <p>Scan the QR code with an authenticator app such as 1Password, Google Authenticator or Microsoft Authenticator. Then enter the six-digit code it shows.</p>
+        <details class="disclosure"><summary>Cannot scan the code?{% include 'icon.html' with name='chevron-down' %}</summary>
+          <div class="disclosure-body"><p>Choose manual entry in your app and enter this key:</p><code class="totp-secret" id="authenticator_secret">{{ form.secret }}</code></div>
+        </details>
+        <form method="post" action="{% url 'mfa_activate_totp' %}">
+          {% csrf_token %}
+          {% if form.non_field_errors %}<div class="alert alert-danger" role="alert"><div class="alert-content">{{ form.non_field_errors }}</div></div>{% endif %}
+          <div class="field{% if form.code.errors %} has-error{% endif %}">
+            <label for="{{ form.code.id_for_label }}">Authenticator code</label>
+            <input class="code-input" type="text" name="{{ form.code.html_name }}" id="{{ form.code.id_for_label }}" inputmode="numeric" autocomplete="one-time-code" maxlength="16" required{% if form.code.errors %} aria-invalid="true"{% endif %}>
+            {{ form.code.errors }}
+          </div>
+          <div class="form-actions"><button class="btn btn-primary" type="submit">Enable</button><a class="btn btn-link" href="{% url 'mfa_index' %}">Cancel</a></div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

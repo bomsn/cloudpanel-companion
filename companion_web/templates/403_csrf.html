@@ -1,0 +1,3 @@
+{% extends "allauth/layouts/entrance.html" %}
+{% block head_title %}Form expired{% endblock %}
+{% block content %}<span class="auth-icon">{% include 'icon.html' with name='clock' %}</span><h1>Form expired</h1><p>This form could not be verified, so nothing was changed. Go back, reload the page and submit it again.</p><div class="form-actions"><a class="btn btn-primary" href="/">Go to Overview</a></div>{% endblock %}

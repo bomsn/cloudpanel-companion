@@ -1,0 +1,4 @@
+{% extends "allauth/layouts/entrance.html" %}
+{% block head_title %}No operator access{% endblock %}
+{% block content %}<span class="auth-icon">{% include 'icon.html' with name='user' %}</span><h1>No operator access</h1><p>This account is not an operator. Sign out, then sign in with a Companion operator account.</p>
+<form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<div class="form-actions"><button class="btn btn-primary" type="submit">Sign out</button></div></form>{% endblock %}

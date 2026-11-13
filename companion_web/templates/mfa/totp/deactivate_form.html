@@ -1,0 +1,15 @@
+{% extends "mfa/totp/base.html" %}
+{% block head_title %}Disable two-factor authentication{% endblock %}
+{% block account_body %}
+<section class="card" aria-labelledby="deactivate-title">
+  <div class="card-header"><h2 id="deactivate-title">Disable two-factor authentication</h2></div>
+  <div class="card-body">
+    <p>You will sign in with your password only. Your authenticator app and recovery codes stop working for this account.</p>
+    <form method="post" action="{% url 'mfa_deactivate_totp' %}">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger" role="alert"><div class="alert-content">{{ form.non_field_errors }}</div></div>{% endif %}
+      <div class="form-actions"><button class="btn btn-danger" type="submit">Disable two-factor authentication</button><a class="btn btn-link" href="{% url 'mfa_index' %}">Cancel</a></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

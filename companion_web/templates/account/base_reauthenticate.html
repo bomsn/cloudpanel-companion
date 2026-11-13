@@ -1,0 +1,9 @@
+{% extends "account/base_entrance.html" %}
+{% block head_title %}Confirm access{% endblock %}
+{% block content %}
+<h1>Confirm access</h1>
+<p>This change is protected. Confirm it is you to continue. Protected changes then stay unlocked for five minutes.</p>
+{% block reauthenticate_content %}{% endblock %}
+{% if reauthentication_alternatives %}<hr><h2>Other ways to confirm</h2>
+<div class="button-group">{% for alt in reauthentication_alternatives %}<a class="btn btn-secondary" href="{{ alt.url }}">{{ alt.description }}</a>{% endfor %}</div>{% endif %}
+{% endblock %}

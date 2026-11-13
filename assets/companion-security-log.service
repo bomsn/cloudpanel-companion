@@ -1,0 +1,25 @@
+[Unit]
+Description=Companion sign-in, SSH, panel-visit and website-probe history
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/cloudpanel-companion
+StateDirectory=cloudpanel-companion-security-log
+StateDirectoryMode=0700
+ExecStart=/usr/bin/python3 -m companion.security_log
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+# The export, the system incident outbox (Slack) and the interface's alert spool;
+# the last two exist only once monitoring is installed and an alert was handed over.
+ReadWritePaths=/var/lib/cloudpanel-companion-security-log-observations -/var/lib/cloudpanel-companion-system -/var/lib/cloudpanel-companion-web/security-alerts
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+TimeoutStartSec=45
+MemoryMax=192M
+CPUQuota=20%

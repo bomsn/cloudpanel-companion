@@ -1,0 +1,116 @@
+{% extends 'layout.html' %}
+{% load humanize %}
+{% block head_title %}Security{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Security</h1><p class="page-subtitle">{% if export %}Sign-ins, visits and blocked scans, updated {{ observed_at|date:'H:i' }} UTC{% else %}Server history unavailable{% endif %}</p></div>
+  <div class="page-actions"><a class="btn btn-secondary" href="?panel={{ tab }}">{% include 'icon.html' with name='refresh-cw' %}Refresh</a></div>
+</div>
+
+{% if not export %}
+<div class="alert alert-warning" role="alert">{% include 'icon.html' with name='triangle-alert' %}<div class="alert-content"><strong>CloudPanel, SSH and blocked scan history is unavailable.</strong><p>Sign-in and visit history has not updated in the last three minutes, so only the Companion's own sign-ins can be shown. Run <code>sudo bash install.sh</code> to install or restart it.</p></div></div>
+{% endif %}
+{% if attention %}
+<div class="alert alert-warning" role="status">{% include 'icon.html' with name='triangle-alert' %}<div class="alert-content"><strong>Needs attention</strong><ul class="attention-list">{% for item in attention %}{% with row=item.row %}
+  <li>{% include 'icon.html' with name=item.icon %}<span>{% if item.kind == 'new-source' %}{{ item.panel }}: <strong>{{ row.user }}</strong> signed in from a new {% if row.new_source == 'country' %}country, {{ row.country_name }}{% else %}IP address{% endif %} ({{ row.ip }}), {{ row.when|date:'j M, H:i' }} UTC.{% else %}{{ item.panel }}: {{ row.burst }} failed attempts within {{ burst_minutes }} minutes, the latest from {{ row.ip }}{% if row.country_name != 'Unknown' %} ({{ row.country_name }}){% endif %}, {{ row.when|date:'j M, H:i' }} UTC.{% endif %}</span></li>
+{% endwith %}{% endfor %}</ul></div></div>
+{% elif export %}
+<div class="alert alert-success" role="status">{% include 'icon.html' with name='circle-check' %}<div class="alert-content"><strong>Nothing needs attention</strong><p>No sign-ins from new sources and no bursts of failed attempts in the last 7 days.</p></div></div>
+{% endif %}
+{% if unavailable %}<div class="alert alert-warning" role="status">{% include 'icon.html' with name='triangle-alert' %}<div class="alert-content">Could not be read in the latest update: {{ unavailable|join:', ' }}. Counts from these may be incomplete.</div></div>{% endif %}
+
+<nav class="panel-picker" aria-label="Panel">{% for item in summary %}{% with data=item.data %}
+  <a href="?panel={{ item.key }}" {% if item.key == tab %}aria-current="page"{% endif %}>
+    <span class="panel-picker-name">{% include 'icon.html' with name=item.icon %}<strong>{{ item.name }}</strong>{% if item.host %}<small>{{ item.host }}</small>{% endif %}</span>
+    {% if data and item.key == 'website' %}<span class="panel-picker-counts"><span><strong>{{ data.today|intcomma }}</strong> blocked scan{{ data.today|pluralize }}</span><span><strong>{{ data.active|length|intcomma }}</strong> banned now</span><small>Today</small></span>
+    {% elif data %}<span class="panel-picker-counts"><span><strong>{{ data.signins_24h|intcomma }}</strong> sign-in{{ data.signins_24h|pluralize }}</span><span><strong>{{ data.failed_24h|intcomma }}</strong> failed</span><small>Last 24 hours</small></span>
+    {% else %}<span class="panel-picker-counts"><small>Waiting for the first update</small></span>{% endif %}
+  </a>{% endwith %}{% endfor %}</nav>
+
+{% if tab == 'cloudpanel' and panel_log_problem %}
+<div class="alert alert-warning" role="status">{% include 'icon.html' with name='triangle-alert' %}<div class="alert-content">{{ panel_log_problem }}</div></div>
+{% endif %}
+
+{% if tab == 'website' %}
+{% include 'security_probes.html' %}
+{% elif not panel %}
+<section class="card">{% include 'empty.html' with icon='clock' level='h2' title=tab_name|add:' history is unavailable' text='Sign-in and visit history has not updated recently. Run sudo bash install.sh to install or restart it.' only %}</section>
+{% else %}
+
+{% if tab == 'ssh' %}
+<section class="card" aria-labelledby="protection-title">
+  <div class="card-header"><div><h2 id="protection-title">Protection</h2><p>Confirms specific protections. Not a vulnerability scan.</p></div></div>
+  {% with jail=protection.ssh_jail ports=protection.ssh_ports %}<dl class="metric-grid">
+    <div><dt>Server firewall</dt><dd>{% if protection.firewall == 'active' %}{% include 'status.html' with tone='success' label='Active' only %}{% else %}{% include 'status.html' with tone='warning' label=protection.firewall|default:'Unavailable'|capfirst only %}{% endif %}</dd></div>
+    <div><dt>SSH protection</dt><dd>{% if not jail %}{% include 'status.html' with tone='warning' label='Unavailable' only %}{% elif ports.uncovered %}{% include 'status.html' with tone='warning' label='Bans miss the SSH port' only %}<small>Fail2ban does not ban on port {{ ports.uncovered|join:', ' }}. Run sudo bash install.sh to fix it.</small>{% else %}{% include 'status.html' with tone='success' label='Fail2ban active' only %}{% if ports %}<small>Bans cover SSH port{{ ports.ports|pluralize }} {{ ports.ports|join:', ' }}</small>{% endif %}{% endif %}</dd></div>
+    <div><dt>Blocked now</dt><dd>{% if jail %}{{ jail.current|intcomma }}<small>{{ jail.total|intcomma }} ban{{ jail.total|pluralize }} since Fail2ban started</small>{% else %}Unknown{% endif %}</dd></div>
+  </dl>
+  {% if jail.banned %}<div class="card-body card-body-ruled"><h3 class="security-subheading">Blocked addresses</h3><ul class="address-list">{% for ip in jail.banned %}<li><code>{{ ip }}</code></li>{% endfor %}</ul></div>{% endif %}{% endwith %}
+</section>
+{% endif %}
+
+<section class="card" aria-labelledby="activity-title">
+  <div class="card-header"><div><h2 id="activity-title">Last 7 days</h2><p>{{ panel.signins_7d|intcomma }} sign-in{{ panel.signins_7d|pluralize }} and {{ panel.failed_7d|intcomma }} failed attempt{{ panel.failed_7d|pluralize }}, per day</p></div></div>
+  <div class="chart-pair">
+    {% include 'bar_chart.html' with chart=panel.chart_signins caption='Sign-ins' only %}
+    {% include 'bar_chart.html' with chart=panel.chart_failed caption='Failed attempts' tone='danger' only %}
+  </div>
+</section>
+
+<section class="card" aria-labelledby="signins-title">
+  <div class="card-header"><div><h2 id="signins-title">Sign-ins</h2><p>{% if tab == 'ssh' %}Accepted SSH logins{% elif tab == 'cloudpanel' %}Accepted CloudPanel passwords{% else %}Completed Companion sign-ins{% endif %}, newest first</p></div></div>
+  <div class="table-wrap"><table class="table responsive">
+    <thead><tr><th>Time</th><th>User</th><th>Source</th>{% if tab == 'ssh' %}<th>Method</th>{% else %}<th>Browser</th><th>Two-factor</th>{% endif %}</tr></thead>
+    <tbody>{% for row in panel.signins %}<tr>
+      <td class="nowrap">{{ row.when|date:'j M, H:i' }} UTC</td>
+      <td data-label="User">{{ row.user }}</td>
+      <td data-label="Source">{% include 'security_source.html' %}</td>
+      {% if tab == 'ssh' %}<td data-label="Method">{{ row.method_label|default:'Other' }}</td>
+      {% else %}<td data-label="Browser">{{ row.browser }}</td>
+      <td data-label="Two-factor">{% if row.two_factor %}{% include 'status.html' with tone='success' label='Yes' only %}{% else %}<span class="pill">No</span>{% endif %}</td>{% endif %}
+    </tr>{% empty %}<tr><td colspan="{% if tab == 'ssh' %}4{% else %}5{% endif %}" class="table-empty">{% include 'icon.html' with name='clock' %}No sign-ins recorded in the last 90 days.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="card-footer"><p>A sign-in from an IP address or country not seen in the previous 90 days is marked new; the first recorded sign-in sets the baseline.{% if tab == 'cloudpanel' %} Two-factor shows whether the account must enter a code to finish. Unverified addresses are CloudPanel's own record, which behind Cloudflare can be a Cloudflare server.{% endif %}</p></div>
+</section>
+
+<section class="card" aria-labelledby="failed-title">
+  <div class="card-header"><div><h2 id="failed-title">Failed attempts by source</h2><p>{{ panel.failed_7d|intcomma }} in the last 7 days{% if panel.source_count %} from {{ panel.source_count|intcomma }} source{{ panel.source_count|pluralize }}, most recent first{% endif %}</p></div></div>
+  <div class="table-wrap"><table class="table responsive">
+    <thead><tr><th>Source</th><th class="numeric">Attempts</th>{% if tab != 'cloudpanel' %}<th>Users tried</th>{% endif %}{% if tab != 'ssh' %}<th>Step</th>{% endif %}<th>Active</th></tr></thead>
+    <tbody>{% for item in panel.failed_sources %}<tr>
+      <td>{% include 'security_source.html' with row=item %}</td>
+      <td data-label="Attempts" class="numeric">{{ item.attempts|intcomma }}{% if item.burst %}<small><span class="pill pill-danger" title="Part of {{ item.burst }} failed attempts on this panel within {{ burst_minutes }} minutes">{% include 'icon.html' with name='shield-alert' only %}Burst</span></small>{% endif %}</td>
+      {% if tab != 'cloudpanel' %}<td data-label="Users tried">{% if item.users %}{{ item.users|join:', ' }}{% if item.more_users %}<small>+{{ item.more_users }} more</small>{% endif %}{% if item.unnamed %}<small>+{{ item.unnamed|intcomma }} with {% if tab == 'companion' %}no account name{% else %}no name{% endif %}</small>{% endif %}{% elif tab == 'companion' %}No account name{% else %}No name{% endif %}</td>{% endif %}
+      {% if tab != 'ssh' %}<td data-label="Step">{{ item.step_labels|join:', ' }}</td>{% endif %}
+      <td data-label="Active" class="nowrap">{% if item.first|date:'YmdHi' == item.last|date:'YmdHi' %}{{ item.last|date:'j M, H:i' }} UTC{% elif item.first|date:'Ymd' == item.last|date:'Ymd' %}{{ item.first|date:'j M, H:i' }} to {{ item.last|date:'H:i' }} UTC{% else %}{{ item.first|date:'j M, H:i' }} to<small>{{ item.last|date:'j M, H:i' }} UTC</small>{% endif %}</td>
+    </tr>{% empty %}<tr><td colspan="{% if tab == 'companion' %}5{% else %}4{% endif %}" class="table-empty">{% include 'icon.html' with name='circle-check' %}No failed attempts in the last 7 days.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="card-footer"><p>{% if panel.more_sources %}{{ panel.more_sources|intcomma }} more source{{ panel.more_sources|pluralize }} not shown. {% endif %}{% if tab == 'companion' %}A name tried is kept only when it is an account's: anything else may be a password typed into the name field. Passwords are never kept.{% elif tab == 'cloudpanel' %}CloudPanel's log records no user name for a rejected sign-in.{% else %}Each failed connection counts once.{% endif %} A burst is {% if tab == 'companion' %}{{ thresholds.companion }}{% elif tab == 'cloudpanel' %}{{ thresholds.cloudpanel }}{% else %}{{ thresholds.ssh }}{% endif %} or more failures within {{ burst_minutes }} minutes.</p></div>
+</section>
+
+{% if tab != 'ssh' %}
+<section class="card" aria-labelledby="visits-title">
+  <div class="card-header"><div><h2 id="visits-title">Visits</h2><p>Requests to {{ tab_host }} in the last 7 days. Images, scripts and stylesheets are not counted.</p></div></div>
+  {% if visits.requests %}
+  <dl class="metric-grid visit-totals">
+    <div><dt>Requests</dt><dd>{{ visits.requests|intcomma }}</dd></div>
+    <div><dt>IP addresses</dt><dd>{{ visits.ips|intcomma }}</dd></div>
+    <div><dt>Countries</dt><dd>{{ visits.country_count|intcomma }}</dd></div>
+  </dl>
+  <div class="card-body card-body-ruled">{% include 'bar_chart.html' with chart=visits.chart caption='Requests per day' only %}</div>
+  <div class="security-columns">
+    <section aria-labelledby="countries-title"><h3 id="countries-title">Top countries</h3>
+      {% if visits.countries %}<ul class="ranked-list">{% for item in visits.countries %}<li><span>{{ item.country_name }}<small>{{ item.ips|intcomma }} IP{{ item.ips|pluralize }}</small></span><strong>{{ item.requests|intcomma }}</strong></li>{% endfor %}</ul>{% else %}<p class="empty-inline">{% include 'icon.html' with name='globe' %}No countries recorded.</p>{% endif %}
+    </section>
+    <section aria-labelledby="addresses-title"><h3 id="addresses-title">Top IP addresses</h3>
+      {% if visits.top_ips %}<ul class="ranked-list">{% for item in visits.top_ips %}<li><span><code>{{ item.ip }}</code><small>{{ item.country_name }}</small></span><strong>{{ item.requests|intcomma }}</strong></li>{% endfor %}</ul>{% else %}<p class="empty-inline">{% include 'icon.html' with name='globe' %}No addresses recorded.</p>{% endif %}
+    </section>
+  </div>
+  {% elif visits %}{% include 'empty.html' with icon='globe' title='No visits in the last 7 days' only %}
+  {% else %}{% include 'empty.html' with icon='clock' title='Waiting for the first update' text='Visits to both panels appear once sign-in and visit history has run.' only %}{% endif %}
+</section>
+{% endif %}
+{% endif %}
+
+<p class="footnote">Days and times are in UTC. Entries are kept for 90 days. Countries come from Cloudflare and are trusted only on requests that reached this server through Cloudflare; any other request is recorded with its connecting address and an unknown country.</p>
+{% endblock %}

@@ -1,0 +1,5 @@
+{% load humanize %}{# Bars from monitoring.bars. The labelled values underneath are the chart's text equivalent. #}<figure class="bar-chart{% if tone %} bar-chart-{{ tone }}{% endif %}">
+  <figcaption>{{ caption }}</figcaption>
+  <svg viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true" focusable="false"><line class="bar-chart-base" x1="0" x2="100" y1="60" y2="60"/>{% for bar in chart.bars %}<rect class="bar-chart-bar" x="{{ bar.x }}" y="{{ bar.y }}" width="{{ bar.width }}" height="{{ bar.height }}"/>{% endfor %}</svg>
+  <ol class="bar-chart-labels">{% for bar in chart.bars %}<li><strong>{{ bar.value|intcomma }}</strong><span>{{ bar.label }}</span></li>{% endfor %}</ol>
+</figure>

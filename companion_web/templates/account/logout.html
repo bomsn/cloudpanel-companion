@@ -1,0 +1,11 @@
+{% extends "account/base_entrance.html" %}
+{% block head_title %}Sign out{% endblock %}
+{% block content %}
+<h1>Sign out</h1>
+<p>Sign out of the Companion in this browser.</p>
+<form method="post" action="{% url 'account_logout' %}">
+  {% csrf_token %}
+  {{ redirect_field }}
+  <div class="form-actions"><button class="btn btn-primary" type="submit">Sign out</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,3 @@
+{# Where a sign-in or attempt came from: its address, its country and how far it can be trusted. SSH has no country source. #}
+{% if row.ip %}<code class="address">{{ row.ip }}</code>{% else %}<span class="text-muted">Not recorded</span>{% endif %}{% if row.source_label %} <span class="pill pill-warning">{{ row.source_label }}</span>{% endif %}{% if row.verified == False %} <span class="pill" title="CloudPanel's own record, not matched to the Companion's access log">Unverified</span>{% endif %}
+{% if tab != 'ssh' %}<small>{{ row.country_name }}</small>{% endif %}

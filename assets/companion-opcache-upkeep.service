@@ -1,0 +1,21 @@
+[Unit]
+Description=Companion nightly OPcache upkeep
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/cloudpanel-companion
+ExecStart=/usr/bin/python3 -m companion.php_runtime
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+# Not strict, and home folders writable: before a reload, php-fpm -tt opens PHP-FPM's log
+# under /var/log and any pool's slow or access log, and a check that failed only inside
+# this sandbox would never let the upkeep reload.
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+TimeoutStartSec=2min
+MemoryMax=128M

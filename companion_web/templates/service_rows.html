@@ -1,0 +1,7 @@
+<tbody>
+      <tr class="group-row"><th colspan="2" scope="rowgroup">{% include 'icon.html' with name=group.icon %}{{ group.title }}{% if group.role %}<small>{{ group.role }}</small>{% endif %}</th></tr>
+      {% for row in group.rows %}<tr>
+        <td><a class="service-name" href="{% url 'monitoring' %}#{{ group.anchor }}">{% include 'icon.html' with name=row.icon %}<span>{{ row.title }}</span></a></td>
+        <td data-label="Status">{% include 'status.html' with tone=row.tone label=row.label only %}</td>
+      </tr>{% endfor %}
+    </tbody>

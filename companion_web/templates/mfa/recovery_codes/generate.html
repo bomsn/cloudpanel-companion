@@ -1,0 +1,15 @@
+{% extends "mfa/recovery_codes/base.html" %}
+{% block head_title %}Generate recovery codes{% endblock %}
+{% block account_body %}
+<section class="card" aria-labelledby="generate-title">
+  <div class="card-header"><h2 id="generate-title">Generate new recovery codes</h2></div>
+  <div class="card-body">
+    <p>A new set of codes is shown once, right after it is generated.{% if unused_code_count %} Your {{ unused_code_count }} unused code{{ unused_code_count|pluralize }} will stop working.{% endif %}</p>
+    <form method="post" action="{% url 'mfa_generate_recovery_codes' %}">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger" role="alert"><div class="alert-content">{{ form.non_field_errors }}</div></div>{% endif %}
+      <div class="form-actions"><button class="btn {% if unused_code_count %}btn-danger{% else %}btn-primary{% endif %}" type="submit">Generate codes</button><a class="btn btn-link" href="{% url 'mfa_index' %}">Cancel</a></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

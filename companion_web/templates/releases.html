@@ -1,0 +1,72 @@
+{% extends 'layout.html' %}{% load static %}
+{% block head_title %}Releases{% endblock %}
+{% block extra_head %}<script src="{% static 'releases.js' %}" defer></script>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Releases</h1><p class="page-subtitle">Move selected theme and plugin code from staging to the website</p></div>
+</div>
+{% if error %}<div class="alert alert-warning" role="alert">{% include 'icon.html' with name='triangle-alert' %}<div class="alert-content">{{ error }}</div></div>{% else %}
+{% if job.running or job.blocked %}<div class="alert {% if job.blocked %}alert-warning{% else %}alert-info{% endif %}" role="status">{% if job.blocked %}{% include 'icon.html' with name='triangle-alert' %}{% else %}{% include 'icon.html' with name='refresh-cw' class='spin' %}{% endif %}<div class="alert-content">{% if job.running %}A website workflow is running. Its state is checked below.{% else %}The last release needs attention. Use Restore previous code in Release history before continuing.{% endif %}</div></div>{% endif %}
+
+{% if selected %}
+<section class="card" id="release-review" aria-labelledby="review-title">
+  <div class="card-header"><div><h2 id="review-title">Review your release</h2><p>{{ selected.changed_count }} changed file{{ selected.changed_count|pluralize }}. This approval expires after ten minutes.</p></div>{% include 'status.html' with tone=selected.tone label=selected.label only %}</div>
+  <div class="card-body">
+    <div class="route"><div>{% include 'icon.html' with name='layers' %}<span><small>From staging</small><strong>{{ selected.source_host }}</strong></span></div>{% include 'icon.html' with name='arrow-right' %}<div>{% include 'icon.html' with name='globe' %}<span><small>To website</small><strong>{{ selected.target_host }}</strong></span></div></div>
+    <div class="review-files"><table class="table responsive"><thead><tr><th>File to release</th><th>Change</th></tr></thead><tbody>{% for row in selected.changes %}{% if row.action != 'unchanged' %}<tr><td><code>{{ row.file }}</code></td><td data-label="Change"><span class="pill pill-info">{{ row.action|capfirst }}</span></td></tr>{% endif %}{% endfor %}</tbody></table></div>
+    {% if selected.phase == 'preview' and selected.changed and selected.mine and not selected.expired %}
+      <div class="lockable{% if not access_unlocked %} is-locked{% endif %}">
+      <form class="lockable-content" method="post" action="{% url 'release_change' %}" data-submit-label="Starting release…" {% if not access_unlocked %}inert{% endif %}>{% csrf_token %}<input type="hidden" name="operation" value="release_apply"><input type="hidden" name="token" value="{{ selected.token }}">
+        <label class="check"><input type="checkbox" name="confirmed" value="yes" required><span>Apply these files to {{ selected.target_host }}. The website briefly holds new requests while the code is checked.</span></label>
+        <div class="form-actions"><button class="btn btn-primary" type="submit" {% if job.running or job.blocked %}disabled{% endif %}>{% include 'icon.html' with name='upload' %}Apply reviewed files</button><span class="text-muted">The previous code is kept for recovery.</span></div></form>
+      {% if not access_unlocked %}{% include 'unlock.html' with purpose='the website with these files' %}{% endif %}
+      </div>
+    {% elif selected.expired and selected.phase == 'preview' %}<div class="alert alert-warning">{% include 'icon.html' with name='triangle-alert' %}<div class="alert-content">This preview expired. Select the changes below to prepare a fresh one.</div></div>
+    {% else %}<p class="text-muted">{{ selected.label }}. Recovery options are in Release history below.</p>{% endif %}
+  </div>
+</section>
+{% endif %}
+
+<section class="card" id="code-finder" data-icon-sprite="{% static 'icons.svg' %}" data-status-url="{% url 'comparison_status' %}" data-check-url="{% url 'comparison_start' %}" data-files-url="{% url 'comparison_detail' %}" aria-labelledby="changes-title">
+  <div class="card-header"><div><h2 id="changes-title">Changes in staging</h2><p>Check the files, then choose a whole folder or individual changes</p></div><button class="btn btn-primary" id="check-changes" type="button">{% include 'icon.html' with name='refresh-cw' %}<span>Check changes</span></button></div>
+  <div id="scan-progress" class="alert alert-info scan-progress" role="status" hidden>{% include 'icon.html' with name='refresh-cw' class='spin' %}<div class="alert-content"><strong id="scan-phase">Checking website files</strong><p>Reading file contents to compare them. Nothing is being copied.</p></div></div>
+  <p id="scan-error" class="alert alert-warning scan-progress" role="alert" hidden></p>
+  <div id="scan-results" hidden>
+    <div class="finder-toolbar">
+      <label class="search-field"><span class="visually-hidden">Find a theme or plugin</span>{% include 'icon.html' with name='search' %}<input id="folder-search" type="search" placeholder="Find a theme or plugin" autocomplete="off"></label>
+      <div class="segmented" role="group" aria-label="Folders to show"><button type="button" data-filter="changed" aria-pressed="true">Changed <span id="changed-count"></span></button><button type="button" data-filter="all" aria-pressed="false">All folders <span id="all-count"></span></button></div>
+    </div>
+    <div class="scan-summary"><span id="comparison-summary"></span><span id="comparison-time"></span></div>
+    <div id="folder-list" class="folder-list"></div>
+    <div id="no-matches" class="empty-state" hidden><span class="empty-icon">{% include 'icon.html' with name='search' %}</span><h3>No matching folders</h3><p>Try another name or show all folders.</p></div>
+    <div id="no-changes" class="empty-state" hidden><span class="empty-icon">{% include 'icon.html' with name='circle-check' %}</span><h3>No code changes to release</h3><p>Checked theme and plugin files match the website. Website-only files and excluded files are listed under All folders.</p></div>
+    <form method="post" action="{% url 'release_change' %}" id="selection-form" data-submit-label="Preparing review…">{% csrf_token %}<input type="hidden" name="operation" value="release_preview"><textarea name="files" id="selected-files" hidden></textarea>
+      <div class="selection-bar"><div><p id="selection-summary" role="status">No changes selected</p><small>Only selected code moves. Website-only files stay in place.</small></div><div class="button-group"><button type="button" class="btn btn-secondary" id="clear-selection" disabled>Clear</button><button class="btn btn-primary" type="submit" id="review-selection" disabled>{% include 'icon.html' with name='eye' %}Review changes</button></div></div>
+    </form>
+  </div>
+  <div id="scan-empty" class="empty-state"><span class="empty-icon">{% include 'icon.html' with name='folder' %}</span><h3>See what changed</h3><p>Compare the registered themes and plugins between staging and the website. Database content, uploads, passwords and staging settings are never copied.</p></div>
+  <noscript><div class="card-body"><p>Enable JavaScript to check and select changed files visually, or prepare a review from exact paths.</p><form method="post" action="{% url 'release_change' %}">{% csrf_token %}<input type="hidden" name="operation" value="release_preview"><div class="field"><label for="manual-files">Theme or plugin paths, one per line</label><textarea name="files" id="manual-files" maxlength="50000" required></textarea></div><button class="btn btn-primary" type="submit">Prepare review</button></form></div></noscript>
+  <div class="card-footer"><p>Each review checks your selection again. Limits: 5,000 changed files, 32 MB in total and 8 MB per file. Plugin updates that change the database need their own release plan.</p></div>
+</section>
+
+<section class="card" aria-labelledby="history-title">
+  <div class="card-header"><div><h2 id="history-title">Release history</h2><p>Open a preview, or restore the code kept from an earlier release</p></div></div>
+  {% if releases %}
+  <div class="table-wrap"><table class="table responsive">
+    <thead><tr><th>Prepared</th><th>State</th><th class="numeric">Changed files</th><th>Actions</th></tr></thead>
+    <tbody>{% for item in releases %}<tr>
+      <td><a href="?preview={{ item.token }}#release-review">{{ item.created|date:'j M, H:i' }} UTC</a><small>By {{ item.actor }}</small></td>
+      <td data-label="State">{% include 'status.html' with tone=item.tone label=item.label only %}</td>
+      <td data-label="Changed files" class="numeric">{{ item.changed_count }}</td>
+      <td data-label="Actions">
+        {% if item.phase == 'completed' or item.phase == 'recovery-needs-review' %}<details class="disclosure history-action"><summary>Restore previous code</summary><div class="lockable{% if not access_unlocked %} is-locked{% endif %}"><form class="lockable-content" method="post" action="{% url 'release_change' %}" data-submit-label="Starting recovery…" {% if not access_unlocked %}inert{% endif %}>{% csrf_token %}<input type="hidden" name="operation" value="release_recover"><input type="hidden" name="token" value="{{ item.token }}"><label class="check"><input type="checkbox" name="confirmed" value="yes" required><span>Restore the files kept before this release.</span></label><button class="btn btn-secondary btn-sm" type="submit" {% if job.running or job.blocked and job.token != item.token %}disabled{% endif %}>Restore code</button></form>{% if not access_unlocked %}{% include 'unlock.html' with purpose='the website by restoring this code' %}{% endif %}</div></details>
+        {% elif item.phase == 'preview' and item.mine %}<form method="post" action="{% url 'release_change' %}">{% csrf_token %}<input type="hidden" name="operation" value="release_discard"><input type="hidden" name="token" value="{{ item.token }}"><button class="btn btn-link" type="submit" {% if job.running or job.blocked %}disabled{% endif %}>Discard preview</button></form>
+        {% elif item.phase == 'rolled-back' %}<span class="text-muted">Already restored</span>{% elif item.phase == 'applying' %}<span class="text-muted">In progress</span>{% else %}<span class="text-muted">Not applied</span>{% endif %}
+      </td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="card-footer"><p>Recovery protects newer edits. It does not restore website content or orders.</p></div>
+  {% else %}{% include 'empty.html' with icon='upload' title='No releases yet' text='Check the changes above to prepare your first release.' only %}{% endif %}
+</section>
+{% endif %}
+{% endblock %}

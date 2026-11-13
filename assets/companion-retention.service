@@ -1,0 +1,22 @@
+[Unit]
+Description=Retire attested superseded staging generations
+After=nginx.service mariadb.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/cloudpanel-companion
+ExecStart=/usr/bin/python3 -m companion.retention --registry /etc/cloudpanel-companion/operations.json --all --apply
+TimeoutStartSec=10min
+UMask=0077
+# No NoNewPrivileges here: native `clpctl db:delete` removes its database backup
+# folder through sudo, and runuser must switch to the staging owner. With the
+# flag set every scheduled retirement fails before freeing any space.
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+MemoryMax=256M
+CPUQuota=50%
+IOWeight=25
+TasksMax=32

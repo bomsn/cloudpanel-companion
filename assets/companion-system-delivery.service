@@ -1,0 +1,26 @@
+[Unit]
+Description=Deliver queued system service incidents
+After=network-online.target companion-system-watch.service
+ConditionPathExists=/etc/cloudpanel-companion/slack.json
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/cloudpanel-companion
+LoadCredential=slack.json:/etc/cloudpanel-companion/slack.json
+ExecStart=/usr/bin/python3 -m companion.delivery --config %d/slack.json --state-dir /var/lib/cloudpanel-companion-system
+TimeoutStartSec=3min
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/cloudpanel-companion-system
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,5 @@
+<nav class="tabs" aria-label="Staging pages">{% with page=request.resolver_match.url_name %}
+  <a href="{% url 'staging' %}" {% if page == 'staging' %}aria-current="page"{% endif %}>Copy and access</a>
+  <a href="{% url 'staging_external' %}" {% if page == 'staging_external' %}aria-current="page"{% endif %}>External tests</a>
+  <a href="{% url 'staging_inbox' %}" {% if page == 'staging_inbox' %}aria-current="page"{% endif %}>Test inbox</a>
+{% endwith %}</nav>
