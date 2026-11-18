@@ -1,0 +1,37 @@
+[Unit]
+Description=CloudPanel Companion public-page cache revisions
+After=network.target varnish.service
+BindsTo=varnish.service
+PartOf=varnish.service
+
+[Service]
+User=companion-cache
+Group=varnish
+WorkingDirectory=/opt/cloudpanel-companion
+LoadCredential=registry:/etc/cloudpanel-companion/cache-sites.json
+LoadCredential=admin-secret:/etc/cloudpanel-companion/cache-admin.secret
+RuntimeDirectory=cache-manager-control
+RuntimeDirectoryMode=0755
+ExecStart=/usr/bin/python3 -m companion.cache_control --config %d/registry --policy /opt/cloudpanel-companion/assets/cache-policy.vcl --state /var/lib/cache-manager-control/state --instance /var/lib/varnish/companion --ready /run/cache-manager-control/ready --secret %d/admin-secret --port 6083
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_UNIX
+IPAddressDeny=any
+IPAddressAllow=localhost
+CapabilityBoundingSet=
+ReadWritePaths=/var/lib/cache-manager-control /run/cache-manager-control
+MemoryMax=128M
+CPUQuota=50%
+TasksMax=16
+UMask=0077
+
+[Install]
+WantedBy=varnish.service

@@ -1,0 +1,57 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block head_title %}Companion{% endblock %} | CloudPanel Companion</title>
+  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="{% static 'workspace.css' %}">
+  <script src="{% static 'workspace.js' %}" defer></script>
+  {% block extra_head %}{% endblock %}
+</head>
+{% comment %}
+Only operators get the operations shell. Everyone else (signed out, mid sign-in,
+or a non-operator account) sees the centred sign-in frame.
+{% endcomment %}
+{% if operator %}
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="app-header">
+    <a class="brand" href="/"><span class="brand-mark">{% include 'icon.html' with name='layers' %}</span>Companion</a>
+    <div class="header-end">
+      <details class="user-menu">
+        <summary aria-label="Account menu for {{ user.get_username }}">{% include 'icon.html' with name='user' %}<span class="user-menu-name">{{ user.get_username }}</span>{% include 'icon.html' with name='chevron-down' %}</summary>
+        <div class="user-menu-panel">
+          <p>Signed in as <strong>{{ user.get_username }}</strong></p>
+          {% include 'account_links.html' %}
+          <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form>
+        </div>
+      </details>
+    </div>
+  </header>
+  <div class="app-body">
+    <nav class="sidebar" aria-label="Operations">
+      <ul>{% with page=request.resolver_match.url_name %}
+        <li><a href="{% url 'dashboard' %}" {% if page == 'dashboard' %}aria-current="page"{% endif %}>{% include 'icon.html' with name='layout-dashboard' %}Overview</a></li>
+        <li><a href="{% url 'monitoring' %}" {% if page == 'monitoring' %}aria-current="page"{% endif %}>{% include 'icon.html' with name='activity' %}Monitoring</a></li>
+        <li><a href="{% url 'security' %}" {% if page == 'security' %}aria-current="page"{% endif %}>{% include 'icon.html' with name='shield' %}Security</a></li>
+        <li><a href="{% url 'staging' %}" {% if page == 'staging' or page == 'staging_external' or page == 'staging_inbox' %}aria-current="page"{% endif %}>{% include 'icon.html' with name='layers' %}Staging</a></li>
+        <li><a href="{% url 'releases' %}" {% if page == 'releases' %}aria-current="page"{% endif %}>{% include 'icon.html' with name='upload' %}Releases</a></li>
+      {% endwith %}</ul>
+    </nav>
+    <main class="app-main" id="main" tabindex="-1"><div class="container">
+{% else %}
+<body class="auth-page">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <main id="main" tabindex="-1">
+    <a class="brand" href="/"><span class="brand-mark">{% include 'icon.html' with name='layers' %}</span>Companion</a>
+{% endif %}
+      {% block main %}{% include 'messages.html' %}{% block content %}{% endblock %}{% endblock %}
+{% if operator %}
+    </div></main>
+  </div>
+{% else %}
+  </main>
+{% endif %}
+  {% block extra_body %}{% endblock %}
+</body>
+</html>

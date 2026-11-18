@@ -1,0 +1,21 @@
+[Unit]
+Description=Apply the Companion's website probe bans to Nginx
+After=nginx.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/cloudpanel-companion
+# Started by the Fail2ban action on every ban change. It waits a few seconds first, and
+# starting it while it waits joins that run, so a wave of bans costs one reload. It tests
+# the whole Nginx configuration before a graceful reload; nginx -t opens every site's
+# logs, so this job keeps write access to them.
+ExecStart=/usr/bin/python3 -m companion.probe_guard reload
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+TimeoutStartSec=2min
+MemoryMax=128M

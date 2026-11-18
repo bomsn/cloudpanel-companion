@@ -1,0 +1,27 @@
+{% extends "mfa/base_manage.html" %}
+{% block head_title %}Two-factor authentication{% endblock %}
+{% block account_body %}
+{% with totp=authenticators.totp recovery=authenticators.recovery_codes %}
+<section class="card" aria-labelledby="two-factor-title">
+  <div class="card-header">
+    <h2 id="two-factor-title">Two-factor authentication</h2>
+    {% if totp %}{% include 'status.html' with tone='success' label='Enabled' only %}{% else %}<span class="pill">Not enabled</span>{% endif %}
+  </div>
+  <div class="card-body">
+    <p>Two-factor authentication adds a second step when you sign in: your password, then a six-digit code from an authenticator app on your phone. It is optional, and recommended for every operator.</p>
+    {% if totp %}<p>You sign in with your password and an authenticator code. Protected changes accept either your password or a code.</p>{% endif %}
+  </div>
+  <div class="card-footer">
+    {% if totp %}<p>Turning it off requires confirming your access first.</p><a class="btn btn-danger" href="{% url 'mfa_deactivate_totp' %}">Disable two-factor authentication</a>
+    {% else %}<p>Setup takes about a minute.</p><a class="btn btn-primary" href="{% url 'mfa_activate_totp' %}">Enable two-factor authentication</a>{% endif %}
+  </div>
+</section>
+{% if totp and recovery %}
+<section class="card" aria-labelledby="recovery-title">
+  <div class="card-header"><h2 id="recovery-title">Recovery codes</h2>{% with unused=recovery.get_unused_codes|length total=recovery.generate_codes|length %}{% if unused %}<span class="pill">{{ unused }} of {{ total }} unused</span>{% else %}{% include 'status.html' with tone='warning' label='None left' only %}{% endif %}{% endwith %}</div>
+  <div class="card-body"><p>Each recovery code signs you in once if you lose your phone. They are shown only when generated, so keep them somewhere safe.</p></div>
+  <div class="card-footer"><p>New codes replace any you saved before.</p><a class="btn btn-secondary" href="{% url 'mfa_generate_recovery_codes' %}">Generate new codes</a></div>
+</section>
+{% endif %}
+{% endwith %}
+{% endblock %}

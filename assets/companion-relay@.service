@@ -1,0 +1,36 @@
+[Unit]
+Description=Isolated staging test relay for %i
+After=network-online.target
+
+[Service]
+Type=simple
+User=companion-relay
+Group=%i
+WorkingDirectory=/opt/cloudpanel-companion
+RuntimeDirectory=cloudpanel-companion-relay/%i
+RuntimeDirectoryMode=0750
+StateDirectory=cloudpanel-companion-relay/%i
+StateDirectoryMode=0700
+LoadCredential=relay.json:/etc/cloudpanel-companion/relay-%i.json
+ExecStart=/usr/bin/python3 -m companion.relay --config ${CREDENTIALS_DIRECTORY}/relay.json --state /var/lib/cloudpanel-companion-relay/%i --socket /run/cloudpanel-companion-relay/%i/transport.sock
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+MemoryMax=128M
+CPUQuota=25%
+TasksMax=16
+
+[Install]
+WantedBy=multi-user.target

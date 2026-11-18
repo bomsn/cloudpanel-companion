@@ -1,0 +1,4 @@
+{# Account pages, shared by the header's account menu and the Account tabs. #}{% url 'mfa_index' as two_factor_url %}{% url 'account_change_password' as password_url %}{% url 'usersessions_list' as sessions_url %}
+<a href="{{ two_factor_url }}" {% if two_factor_url in request.path %}aria-current="page"{% endif %}>Two-factor</a>
+<a href="{{ password_url }}" {% if request.path == password_url %}aria-current="page"{% endif %}>Password</a>
+<a href="{{ sessions_url }}" {% if request.path == sessions_url %}aria-current="page"{% endif %}>Sessions</a>

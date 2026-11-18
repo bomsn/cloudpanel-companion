@@ -1,0 +1,35 @@
+[Unit]
+Description=CloudPanel Companion registered staging operations
+After=nginx.service
+
+[Service]
+Type=simple
+User=root
+Group=companion-web
+WorkingDirectory=/opt/cloudpanel-companion
+RuntimeDirectory=cloudpanel-companion-operations
+RuntimeDirectoryMode=0750
+StateDirectory=cloudpanel-companion-operations
+StateDirectoryMode=0700
+ExecStart=/usr/bin/python3 -m companion.operations --registry /etc/cloudpanel-companion/operations.json --socket /run/cloudpanel-companion-operations/control.sock
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+AmbientCapabilities=CAP_SETUID CAP_SETGID
+# CAP_DAC_OVERRIDE: root must reach each staging relay's socket (owned by the relay identity and
+# the staging group, mode 0660 in a 0750 folder); the relay then admits it by its uid 0.
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_CHOWN CAP_DAC_OVERRIDE
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryMax=1G
+CPUQuota=100%
+IOWeight=50
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,30 @@
+[Unit]
+Description=CloudPanel Companion HTTP and certificate checks
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=companion-monitor
+Group=companion-monitor
+WorkingDirectory=/opt/cloudpanel-companion
+LoadCredential=monitor.json:/etc/cloudpanel-companion/monitor.json
+StateDirectory=cloudpanel-companion-monitor
+StateDirectoryMode=0700
+ExecStart=/usr/bin/python3 -m companion.monitor --config %d/monitor.json --state-dir /var/lib/cloudpanel-companion-monitor
+TimeoutStartSec=8min
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+CapabilityBoundingSet=
+MemoryMax=256M
+CPUQuota=25%
+

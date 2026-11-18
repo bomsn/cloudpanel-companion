@@ -1,0 +1,10 @@
+[Unit]
+Description=Retry pending Companion notifications
+
+[Timer]
+OnBootSec=90s
+OnUnitInactiveSec=60s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
