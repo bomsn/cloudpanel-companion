@@ -1,0 +1,80 @@
+{% extends 'layout.html' %}
+{% block head_title %}Overview{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Overview</h1><p class="page-subtitle">{{ site_name }}</p></div>
+  <div class="page-actions">
+    <a class="btn btn-secondary" href="{{ site_url }}" target="_blank" rel="noopener noreferrer">Open website{% include 'icon.html' with name='external-link' %}</a>
+    <a class="btn btn-primary" href="{{ panel_url }}" target="_blank" rel="noopener noreferrer">Open CloudPanel{% include 'icon.html' with name='external-link' %}</a>
+  </div>
+</div>
+
+{% if not snapshot %}
+<div class="alert alert-warning" role="alert">{% include 'icon.html' with name='triangle-alert' %}<div class="alert-content"><strong>Server checks have not reported recently.</strong><p>Nothing can be confirmed healthy until they report again.</p></div></div>
+{% endif %}
+{% with problems=attention.problems %}{% if problems %}
+<div class="alert alert-{{ problems.0.tone }}" role="alert">{% include 'icon.html' with name='circle-alert' %}<div class="alert-content"><strong>{{ problems|length }} thing{{ problems|length|pluralize }} need{{ problems|length|pluralize:"s," }} attention</strong><ul class="attention-list">{% for item in problems %}<li><a href="{{ item.link }}">{% include 'icon.html' with name=item.icon %}{{ item.text }}</a></li>{% endfor %}</ul></div></div>
+{% elif snapshot %}
+<div class="alert alert-success" role="status">{% include 'icon.html' with name='circle-check' %}<div class="alert-content"><strong>Everything is running normally</strong><p>Websites, certificates, services, mail and backups, last checked {{ observed_at|date:'H:i:s' }} UTC.</p></div></div>
+{% endif %}{% endwith %}
+{% if attention.notes %}<div class="notes"><span>Also worth a look</span><ul>{% for item in attention.notes %}<li><a href="{{ item.link }}">{% include 'icon.html' with name=item.icon %}{{ item.text }}</a></li>{% endfor %}</ul></div>{% endif %}
+
+{% if resources %}
+<dl class="stats" aria-label="Server resources, latest sample">
+  {% with tile=resources.load %}<div class="stat"><dt>Load average</dt><dd><span class="stat-value">{{ tile.value|floatformat:2 }}</span>{% if tile.trend %}<span class="stat-trend">{% include 'sparkline.html' with trend=tile.trend only %}<span class="visually-hidden">Last 24 hours: between {{ tile.trend.low|floatformat:2 }} and {{ tile.trend.high|floatformat:2 }}.</span></span>{% endif %}<small>1-minute average on {{ tile.cpus }} CPU{{ tile.cpus|pluralize }}</small>{% include 'meter.html' with width=tile.bar.width tone=tile.bar.tone only %}</dd></div>{% endwith %}
+  {% with tile=resources.memory %}<div class="stat"><dt>Memory in use</dt><dd><span class="stat-value">{{ tile.bar.percent }}%</span>{% if tile.trend %}<span class="stat-trend">{% include 'sparkline.html' with trend=tile.trend only %}<span class="visually-hidden">Last 24 hours: between {{ tile.trend.low|floatformat:0 }}% and {{ tile.trend.high|floatformat:0 }}%.</span></span>{% endif %}<small>{{ tile.available|filesizeformat }} available of {{ tile.total|filesizeformat }}</small>{% include 'meter.html' with width=tile.bar.width tone=tile.bar.tone only %}</dd></div>{% endwith %}
+  {% with tile=resources.disk %}<div class="stat"><dt>Disk in use</dt><dd><span class="stat-value">{{ tile.bar.percent }}%</span>{% if tile.trend %}<span class="stat-trend">{% include 'sparkline.html' with trend=tile.trend only %}<span class="visually-hidden">Last 24 hours: between {{ tile.trend.low|floatformat:0 }}% and {{ tile.trend.high|floatformat:0 }}%.</span></span>{% endif %}<small>{{ tile.free|filesizeformat }} free of {{ tile.total|filesizeformat }}{% if disk %}. {% if disk.state == 'growing' %}Full around {{ disk.full|date:'j M' }}{% elif disk.state == 'slow' %}Growing slowly{% else %}Not growing{% endif %}{% endif %}</small>{% include 'meter.html' with width=tile.bar.width tone=tile.bar.tone only %}</dd></div>{% endwith %}
+  {% with tile=resources.swap %}<div class="stat"><dt>Swap in use</dt><dd>{% if tile.bar %}<span class="stat-value">{{ tile.bar.percent }}%</span>{% if tile.trend %}<span class="stat-trend">{% include 'sparkline.html' with trend=tile.trend only %}<span class="visually-hidden">Last 24 hours: between {{ tile.trend.low|floatformat:0 }}% and {{ tile.trend.high|floatformat:0 }}%.</span></span>{% endif %}<small>{{ tile.used|filesizeformat }} of {{ tile.total|filesizeformat }}</small>{% include 'meter.html' with width=tile.bar.width tone=tile.bar.tone only %}{% elif tile.total == 0 %}<span class="stat-value">Off</span><small>This server has no swap space</small>{% else %}<span class="stat-value">{{ tile.used|filesizeformat }}</span><small>Allocation, not disk activity</small>{% endif %}</dd></div>{% endwith %}
+</dl>
+{% endif %}
+
+<section class="card" aria-labelledby="checks-title">
+  <div class="card-header"><div><h2 id="checks-title">Website and certificate checks</h2><p>Run from this server every minute</p></div></div>
+  <div class="table-wrap"><table class="table responsive grouped">
+    <thead><tr><th>Check</th><th>Status</th><th>Response</th><th>Certificate</th></tr></thead>
+    {% for group in checks %}<tbody>
+      <tr class="group-row" id="{{ group.anchor }}"><th colspan="4" scope="rowgroup">{% include 'icon.html' with name=group.icon %}{{ group.host }}{% if group.role %}<small>{{ group.role }}</small>{% endif %}</th></tr>
+      {% for check in group.rows %}<tr>
+        <td>{{ check.title }}</td>
+        <td data-label="Status">{% include 'status.html' with tone=check.tone label=check.label only %}</td>
+        <td data-label="Response">{% if check.elapsed_ms != None %}{{ check.elapsed_ms }} ms{% else %}Unavailable{% endif %}{% if check.result %}<small>{{ check.result }}</small>{% endif %}</td>
+        <td data-label="Certificate">{% if check.certificate_days != None %}{{ check.certificate_days }} day{{ check.certificate_days|pluralize }} remaining{% else %}Not available{% endif %}</td>
+      </tr>{% endfor %}
+    </tbody>{% empty %}<tbody><tr><td colspan="4" class="table-empty">{% include 'icon.html' with name='clock' %}Waiting for the first checks to report.</td></tr></tbody>{% endfor %}
+  </table></div>
+  <div class="card-footer"><p>Response time covers connecting and the first reply, not a full page load. The application check confirms WordPress and its database; certificate checks read only the certificate. These checks run on this server, so they can't see a full server outage: use an external uptime monitor for that.</p></div>
+</section>
+
+<section class="card" aria-labelledby="services-title">
+  <div class="card-header">
+    <div><h2 id="services-title">Services</h2><p>{% if system %}Checked every minute{% else %}Not checked recently{% endif %}</p></div>
+    {% if system %}<a class="btn btn-secondary btn-sm" href="{% url 'monitoring' %}#services-title">View all services</a>{% endif %}
+  </div>
+  {% if system %}{% if watched.groups or watched.jobs.rows %}<div class="table-wrap"><table class="table responsive grouped">
+    <thead><tr><th>Service</th><th>Status</th></tr></thead>
+    {% for group in watched.groups %}{% include 'service_rows.html' with group=group only %}{% endfor %}
+    {% if watched.jobs.rows %}{% include 'service_rows.html' with group=watched.jobs only %}{% endif %}
+  </table></div>
+  {% else %}{% include 'empty.html' with icon='server' title='No services are watched' text='Services appear here once an installer registers them for watching.' only %}{% endif %}
+  {% else %}{% include 'empty.html' with icon='clock' title='Waiting for the first service check' text='Services, scheduled jobs, mail and backups have not been checked recently. They are checked every minute.' only %}{% endif %}
+</section>
+
+<section class="card" aria-labelledby="backups-title">
+  <div class="card-header">
+    <div><h2 id="backups-title">Scheduled backups</h2><p>{% if not system %}Not checked recently{% elif backups %}{{ backups|length }} scheduled backup{{ backups|length|pluralize }} from Rclone Automated Backups{% else %}No scheduled backups found{% endif %}</p></div>
+  </div>
+  {% if backups %}
+  <div class="table-wrap"><table class="table responsive">
+    <thead><tr><th>Backup</th><th>Latest scheduled run</th><th>Last success</th></tr></thead>
+    <tbody>{% for job in backups %}<tr>
+      <td>{{ job.name }}</td>
+      <td data-label="Latest run">{% include 'status.html' with tone=job.healthy|yesno:'success,danger' label=job.label only %}</td>
+      <td data-label="Last success">{% if job.last_success_at %}{{ job.last_success_at|date:'j M Y, H:i' }} UTC{% else %}<span class="text-muted">Never</span>{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="card-footer"><p>A backup counts as missed when its latest scheduled run has not succeeded within {% widthratio system.backup_grace 3600 1 %} hours, and alerts like a failed service.{% if missed_backups %} Check the backup log on the server.{% endif %}</p></div>
+  {% elif system %}
+  {% include 'empty.html' with icon='archive' title='No scheduled backups' text='Off-server backups are not part of the Companion. Set them up with Rclone Automated Backups and their schedules appear here.' only %}
+  {% endif %}
+</section>
+{% endblock %}

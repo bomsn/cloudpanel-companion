@@ -1,0 +1,29 @@
+{% extends 'layout.html' %}
+{% block head_title %}Test inbox{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Staging</h1><p class="page-subtitle">Emails sent by staging land here and are never delivered</p></div>
+</div>
+{% include 'staging_nav.html' %}
+{% if error %}<div class="alert alert-warning" role="alert">{% include 'icon.html' with name='triangle-alert' %}<div class="alert-content">{{ error }}</div></div>{% endif %}
+{% if inbox %}
+<div class="mail-layout">
+  <section class="card" aria-labelledby="inbox-title">
+    <div class="card-header"><h2 id="inbox-title">Messages</h2><span class="pill">{{ inbox|length }} message{{ inbox|length|pluralize }}</span></div>
+    <ul class="mail-list">{% for message in inbox %}<li><a href="?message={{ message.id|urlencode }}#message-content" {% if selected.id == message.id %}aria-current="true"{% endif %}>{% include 'icon.html' with name='mail' %}<span><strong>{{ message.subject|default:'No subject' }}</strong><small>To {{ message.recipients|join:', ' }}</small></span></a></li>{% endfor %}</ul>
+  </section>
+  {% if selected %}
+  <section class="card" id="message-content" aria-labelledby="message-title">
+    <div class="card-header"><div><h2 id="message-title">{{ selected.subject|default:'No subject' }}</h2><p>To {{ selected.recipients|join:', ' }}</p></div></div>
+    <div class="card-body"><pre class="mail-body">{{ selected.body }}</pre></div>
+    <div class="card-footer"><p>Shown as plain text. Any HTML is displayed as source.</p></div>
+  </section>
+  {% else %}
+  <section class="card">{% include 'empty.html' with icon='mail' level='h2' title='Select a message' text='Choose a captured email on the left to read it.' only %}</section>
+  {% endif %}
+</div>
+{% elif not error %}
+<section class="card"><div class="empty-state"><span class="empty-icon">{% include 'icon.html' with name='inbox' %}</span><h2>No test emails yet</h2><p>Turn on email capture for a test address, then send an email from staging. It appears here instead of being delivered.</p><p><a class="btn btn-primary" href="{% url 'staging_external' %}">Set up email capture</a></p></div></section>
+{% endif %}
+<p class="footnote">Up to 50 messages are kept, within 8 MB. Older messages are removed automatically.</p>
+{% endblock %}

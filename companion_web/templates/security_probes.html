@@ -1,0 +1,62 @@
+{% load humanize %}{# The Website tab: what the probe guard answered and banned, what still reached WordPress, and edge patterns to copy. #}
+{% if not probes %}
+<section class="card">{% include 'empty.html' with icon='shield' level='h2' title='No blocked scans reported yet' text='They appear once scan blocking is installed and sign-in and visit history has run. Run sudo bash install.sh to install it.' only %}</section>
+{% else %}
+<section class="card" aria-labelledby="guard-title">
+  <div class="card-header"><div><h2 id="guard-title">Bots looking for secret files</h2><p>Requests for files such as .env, configuration and backups get a quick "not found" without starting WordPress</p></div></div>
+  {% with jail=protection.probe_jail %}<dl class="metric-grid visit-totals">
+    <div><dt>Automatic bans</dt><dd>{% if jail %}{% include 'status.html' with tone='success' label='Fail2ban active' only %}{% else %}{% include 'status.html' with tone='warning' label='Unavailable' only %}{% endif %}</dd></div>
+    <div><dt>Banned now</dt><dd>{% if jail %}{{ jail.current|intcomma }}<small>{{ jail.total|intcomma }} ban{{ jail.total|pluralize }} since Fail2ban started</small>{% else %}Unknown{% endif %}</dd></div>
+    <div><dt>Blocked scans, last 7 days</dt><dd>{{ probes.requests|intcomma }}<small>From {{ probes.sources|intcomma }} address{{ probes.sources|pluralize:'es' }}</small></dd></div>
+  </dl>{% endwith %}
+  <div class="card-body card-body-ruled">{% include 'bar_chart.html' with chart=probes.chart caption='Blocked scans per day' tone='danger' only %}</div>
+  <div class="security-columns">
+    <section aria-labelledby="probe-paths-title"><h3 id="probe-paths-title">Most requested files</h3>
+      {% if probes.paths %}<ul class="ranked-list">{% for item in probes.paths %}<li><span><code>{{ item.key }}</code></span><strong>{{ item.requests|intcomma }}</strong></li>{% endfor %}</ul>{% else %}<p class="empty-inline">{% include 'icon.html' with name='circle-check' %}No scans in the last 7 days.</p>{% endif %}
+    </section>
+    <section aria-labelledby="probe-sources-title"><h3 id="probe-sources-title">Busiest addresses</h3>
+      {% if probes.top_sources %}<ul class="ranked-list">{% for item in probes.top_sources %}<li><span><code>{{ item.key }}</code><small>{{ item.country_name }}</small></span><strong>{{ item.requests|intcomma }}</strong></li>{% endfor %}</ul>{% else %}<p class="empty-inline">{% include 'icon.html' with name='circle-check' %}No scanning addresses in the last 7 days.</p>{% endif %}
+    </section>
+  </div>
+  <div class="card-footer"><p>{{ ban_rule }} Only these scans count, never an ordinary missing page or anything inside WordPress's own folders. This server, Cloudflare and the addresses you listed during setup are never banned, and search engines, link previews and uptime monitors are never counted.</p></div>
+</section>
+
+<section class="card" aria-labelledby="bans-title">
+  <div class="card-header"><div><h2 id="bans-title">Banned addresses</h2><p>{{ probes.active|length|intcomma }} active, {{ probes.recent_count|intcomma }} started in the last 7 days</p></div></div>
+  <div class="table-wrap"><table class="table responsive">
+    <thead><tr><th>Address</th><th>Country</th><th>Banned</th><th>Until</th></tr></thead>
+    <tbody>{% for ban in probes.bans %}<tr>
+      <td><code class="address">{{ ban.ip }}</code></td>
+      <td data-label="Country">{{ ban.country_name }}</td>
+      <td data-label="Banned" class="nowrap">{{ ban.since|date:'j M, H:i' }} UTC</td>
+      <td data-label="Until" class="nowrap">{% if ban.active %}{% include 'status.html' with tone='danger' icon='shield-alert' label='Active' only %} {{ ban.until_at|date:'j M, H:i' }} UTC{% else %}Ended{% endif %}</td>
+    </tr>{% empty %}<tr><td colspan="4" class="table-empty">{% include 'icon.html' with name='circle-check' %}No bans in the last 7 days.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="card-footer"><p>A banned address is refused on every request to this website and its staging copy until the ban ends. The Companion and CloudPanel stay reachable. On the server, <code>sudo fail2ban-client status companion-probes</code> lists the same bans and <code>sudo fail2ban-client set companion-probes unbanip ADDRESS</code> lifts one.</p></div>
+</section>
+
+<section class="card" aria-labelledby="missing-title">
+  <div class="card-header"><div><h2 id="missing-title">Other missing pages</h2><p>{{ probes.missing|intcomma }} not-found request{{ probes.missing|pluralize }} in the last 7 days that were not blocked as scans</p></div></div>
+  <div class="security-columns">
+    <section aria-labelledby="missing-paths-title"><h3 id="missing-paths-title">Most requested pages</h3>
+      {% if probes.missing_paths %}<ul class="ranked-list">{% for item in probes.missing_paths %}<li><span><code>{{ item.key }}</code></span><strong>{{ item.requests|intcomma }}</strong></li>{% endfor %}</ul>{% else %}<p class="empty-inline">{% include 'icon.html' with name='circle-check' %}No missing pages in the last 7 days.</p>{% endif %}
+    </section>
+    <section aria-labelledby="missing-sources-title"><h3 id="missing-sources-title">Busiest addresses</h3>
+      {% if probes.missing_sources %}<ul class="ranked-list">{% for item in probes.missing_sources %}<li><span><code>{{ item.key }}</code></span><strong>{{ item.requests|intcomma }}</strong></li>{% endfor %}</ul>{% else %}<p class="empty-inline">{% include 'icon.html' with name='circle-check' %}No addresses recorded.</p>{% endif %}
+    </section>
+  </div>
+  <div class="card-footer"><p>From the website's own access log, without query strings. A path that keeps coming back may be worth blocking with a Cloudflare rule.</p></div>
+</section>
+
+<section class="card" aria-labelledby="patterns-title">
+  <div class="card-header"><div><h2 id="patterns-title">Cloudflare rule suggestions</h2><p>Conditions to paste into a Cloudflare custom rule, under Security, WAF, Custom rules. Most requested first.</p></div></div>
+  {% if probes.patterns.conditions %}
+  <div class="card-body">
+    <ul class="ranked-list pattern-list">{% for item in probes.patterns.conditions %}<li><span><code>{{ item.condition }}</code><small>{{ item.source_label }}</small></span><strong>{{ item.requests|intcomma }}</strong></li>{% endfor %}</ul>
+  </div>
+  <div class="card-body card-body-ruled"><div class="field"><label for="edge-expression">All of them as one expression</label>
+    <textarea id="edge-expression" class="pattern-expression" rows="4" readonly spellcheck="false">{{ probes.patterns.expression }}</textarea></div></div>
+  {% else %}{% include 'empty.html' with icon='circle-check' title='No suggestions yet' text='They appear once blocked scans or missing pages are recorded.' only %}{% endif %}
+  <div class="card-footer"><p>Review them before you copy them; nothing is sent to Cloudflare. Missing pages are listed exactly as they were asked for, so a page you later publish at one of them would be blocked by the rule.</p></div>
+</section>
+{% endif %}
